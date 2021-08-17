@@ -1,0 +1,151 @@
+{
+    "actions": [
+        {
+            "name": "clean-room-uv",
+            "capabilities": "cleaninguv"
+        },
+        {
+            "name": "clean-room-vacuum",
+            "capabilities": "cleaningvacuum"
+        }
+    ],
+    "tasks": {
+        "t0": {
+            "id": "AT1_1|1",
+            "name": "RoomCleaningVacuum",
+            "locations": "RoomA",
+            "robots_num": {
+                "fixed": "False",
+                "min": "2",
+                "max": "4"
+            },
+            "preconditions": [
+                {
+                    "predicate": "not RoomA.is_clean",
+                    "vars": "RoomA",
+                    "var_types": "room"
+                }
+            ],
+            "effects": [
+                {
+                    "predicate": "RoomA.is_clean",
+                    "vars": "RoomA",
+                    "var_types": "room"
+                }
+            ],
+            "triggering_events": "",
+            "decomposition": [
+                "clean-room-vacuum"
+            ],
+            "group": "True",
+            "divisible": "True"
+        },
+        "t1": {
+            "id": "AT2_1|1",
+            "name": "RoomCleaningUV",
+            "locations": "RoomA",
+            "robots_num": {
+                "fixed": "True",
+                "num": "1"
+            },
+            "preconditions": [
+                {
+                    "predicate": "not RoomA.is_clean",
+                    "vars": "RoomA",
+                    "var_types": "room"
+                }
+            ],
+            "effects": [
+                {
+                    "predicate": "RoomA.is_clean",
+                    "vars": "RoomA",
+                    "var_types": "room"
+                }
+            ],
+            "triggering_events": "",
+            "decomposition": [
+                "clean-room-uv"
+            ],
+            "group": "False",
+            "divisible": "True"
+        },
+        "t2": {
+            "id": "AT1_2|1",
+            "name": "RoomCleaningVacuum",
+            "locations": "RoomB",
+            "robots_num": {
+                "fixed": "False",
+                "min": "2",
+                "max": "4"
+            },
+            "preconditions": [
+                {
+                    "predicate": "not RoomB.is_clean",
+                    "vars": "RoomB",
+                    "var_types": "room"
+                }
+            ],
+            "effects": [
+                {
+                    "predicate": "RoomB.is_clean",
+                    "vars": "RoomB",
+                    "var_types": "room"
+                }
+            ],
+            "triggering_events": "",
+            "decomposition": [
+                "clean-room-vacuum"
+            ],
+            "group": "True",
+            "divisible": "True"
+        },
+        "t3": {
+            "id": "AT2_2|1",
+            "name": "RoomCleaningUV",
+            "locations": "RoomB",
+            "robots_num": {
+                "fixed": "True",
+                "num": "1"
+            },
+            "preconditions": [
+                {
+                    "predicate": "not RoomB.is_clean",
+                    "vars": "RoomB",
+                    "var_types": "room"
+                }
+            ],
+            "effects": [
+                {
+                    "predicate": "RoomB.is_clean",
+                    "vars": "RoomB",
+                    "var_types": "room"
+                }
+            ],
+            "triggering_events": "",
+            "decomposition": [
+                "clean-room-uv"
+            ],
+            "group": "False",
+            "divisible": "True"
+        }
+    },
+    "constraints": "",
+    "mission_decompositions": [
+        [
+            "t0",
+            "t2"
+        ],
+        [
+            "t1",
+            "t2"
+        ],
+        [
+            "t0",
+            "t3"
+        ],
+        [
+            "t1",
+            "t3"
+        ]
+    ]
+}

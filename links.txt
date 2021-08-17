@@ -1,0 +1,25 @@
+https://www.youtube.com/watch?v=rXl_m7FJgOo
+
+===== PARSER HDDL ========
+
+GNU BISON -> https://www.gnu.org/software/bison/
+flex fast lexical analyzer
+
+JS -> https://github.com/zaach/jison 
+   -> http://canna71.github.io/Jacob/
+
+
+
+Add C++ to Node
+
+https://medium.com/jspoint/a-simple-guide-to-load-c-c-code-into-node-js-javascript-applications-3fcccf54fd32
+https://github.com/nodejs/node-addon-examples
+
+Node .exe 
+========================
+
+https://github.com/vercel/pkg
+
+https://www.section.io/engineering-education/compile-your-nodejs-application-into-a-exe-file/
+https://medium.com/jspoint/how-to-create-an-executable-exe-file-from-javascript-code-using-node-js-45154ba4de20
+
