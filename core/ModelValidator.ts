@@ -1,6 +1,7 @@
-import { getControlsVariable, ObjectType } from './utils';
-import { ModelRulesValidator } from './ModelRulesValidator';
+import { GOAL_NODE_TYPE_GOAL, GOAL_NODE_TYPE_TASK, GOAL_TYPE_QUERY, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM } from './constants';
 import { GoalTree, Node } from './GoalTree';
+import { ModelRulesValidator } from './ModelRulesValidator';
+import { getControlsVariablesList, ObjectType } from './utils';
 export class ModelValidator {
   tree: GoalTree
   typesMap: Map<string, string>
@@ -66,10 +67,10 @@ export class ModelValidator {
   private validateNode(node: Node, context: any, variablesList: ObjectType) {
     const goalData = node.goalData
     switch (goalData?.type) {
-      case 'istar.Goal':
+      case GOAL_NODE_TYPE_GOAL:
         this.validateGoal(node, context, variablesList)
         break;
-      case 'istar.Task':
+      case GOAL_NODE_TYPE_TASK:
         this.validateTask(node, context, variablesList)
         break;
       default:
@@ -84,9 +85,16 @@ export class ModelValidator {
     const { Controls } = node.goalData.customProperties
     if (Controls) {
       ModelRulesValidator.validateControlsProperty(Controls)
-      const { identifier, type } = getControlsVariable(Controls)
-      variablesList[identifier] = type
-      console.log(Controls)
+
+      getControlsVariablesList(Controls).forEach(variable => {
+        const { identifier, type } = variable
+        if (variablesList[identifier] !== undefined) {
+          // TODO - erro redefinição de variavel
+          console.error('erro redefinição de variável')
+        }
+        variablesList[identifier] = type
+      })
+
     }
   }
 
@@ -95,44 +103,46 @@ export class ModelValidator {
   }
 
   private validateGoal(node: Node, context: any, variablesList: ObjectType) {
-    // console.log('validating Goal')
     ModelRulesValidator.validateGoalTextProperty(node.goalData.text)
     ModelRulesValidator.validateId(node.goalData.text, this.goalIdChecker())
+    ModelRulesValidator.validateGoalType(node.goalData.customProperties.GoalType)
+
+    ModelRulesValidator.validateCreationConditionProperty(node.goalData.customProperties.CreationCondition)
 
     const { GoalType } = node.goalData.customProperties
+
     if (GoalType) {
       switch (GoalType) {
-        case 'Query':
+        case GOAL_TYPE_QUERY:
           validateQueryGoal()
           break;
-        case 'Achieve':
+        case GOAL_TYPE_ACHIEVE:
           validateAchieveGoal()
           break;
-        case 'Perform':
+        case GOAL_TYPE_PERFORM:
           break
-        default:
-          throw new Error('Type not specified')
-          break;
       }
     }
 
     function validateQueryGoal() {
       ModelRulesValidator.validateQueryGoalProperties(node.goalData.customProperties)
-      // TODO - Validando já no parce de variaveis
-      // ModelRulesValidator.validateControlsProperty(node.goalData.customProperties.Controls)
-      ModelRulesValidator.validateQueryGoalQueriedProperty(node.goalData.customProperties)
-      // TODO - validar customProperties que não podem estar no Query
-      // linha 115 gm.cpp
+      ModelRulesValidator.validateQueryGoalQueriedProperty(node.goalData.customProperties, variablesList)
+      ModelRulesValidator.validateNodeIsALeaf(node.children)
     }
 
     function validateAchieveGoal() {
-
+      ModelRulesValidator.validateAchieveGoalProperties(node.goalData.customProperties)
+      ModelRulesValidator.validateMonitorsProperty(node.goalData.customProperties.Monitors, variablesList)
+      ModelRulesValidator.validateAchieveGoalAchieveCondition(node.goalData.customProperties, variablesList)
+      ModelRulesValidator.validateNodeIsNotALeaf(node.children)
     }
   }
 
 
   private validateTask(node: Node, context: any, variablesList: ObjectType) {
-    // console.log('validating Task')
+    ModelRulesValidator.validateId(node.goalData.text, this.taskIdChecker())
+    ModelRulesValidator.validateTaskTextProperty(node.goalData.text)
+    ModelRulesValidator.validateTaskProperties(node.goalData.customProperties)
   }
 
 

@@ -29,7 +29,7 @@
           "customProperties": {
             "Description": "",
             "GoalType": "Query",
-            "Controls": "rooms : Sequence(Room)",
+            "Controls": "rooms : Sequence(Room) , rooms2 : Sequence(Room)",
             "QueriedProperty": "world_db->select(r:Room | !r.is_clean)"
           }
         },
@@ -43,7 +43,7 @@
             "Description": "",
             "GoalType": "Achieve",
             "Controls": "current_room : Room",
-            "Monitors": "rooms",
+            "Monitors": "rooms , rooms2 : Sequence(Room)",
             "AchieveCondition": "rooms->forAll(current_room | current_room.is_clean)"
           }
         },

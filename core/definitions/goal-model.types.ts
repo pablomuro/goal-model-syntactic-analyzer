@@ -10,53 +10,43 @@ export interface GoalModel {
   diagram: any
 
 }
-
 export interface Actor {
   id: string,
   text: string,
-  type: "istar.Actor",
+  type: 'istar.Actor',
   x: number,
   y: number,
   customProperties: {
-    Description: ""
+    Description: ''
   },
   nodes: GoalNode[]
 }
-
 export interface GoalNode {
   id: string
   text: string
-  type: "istar.Goal" | "istar.Task",
+  type: 'istar.Goal' | 'istar.Task',
   x: number
   y: number,
   customProperties: NodeCustomProperties
 }
-
 export interface GoalNodeTree extends GoalNode {
   parent: GoalNodeTree | null
   children: GoalNodeTree[]
 }
-
-export interface NodeTypes {
-
-}
-
-export interface NodeCustomPropertiesObject {
-
-}
-
 export interface NodeCustomProperties {
   [key: string]: string | undefined
   Description?: string
   GoalType?: 'Query' | 'Achieve' | 'Perform'
   Controls?: string
   QueriedProperty?: string
+  Monitors?: string
+  AchieveCondition?: string
+  CreationCondition?: string
 }
-
 export interface Link {
-  id: string,
-  type: "istar.AndRefinementLink",
-  source: string,
+  id: string
+  type: 'istar.AndRefinementLink' | 'istar.OrRefinementLink'
+  source: string
   target: string
 }
 
