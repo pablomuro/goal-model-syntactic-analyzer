@@ -1,14 +1,10 @@
-import { GOAL_NODE_TYPE_GOAL, GOAL_NODE_TYPE_TASK, GOAL_TYPE_QUERY, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM } from './constants';
+import { ErrorLogger } from './ErroLogger';
 import { GoalTree, Node } from './GoalTree';
 import { ModelRulesValidator } from './ModelRulesValidator';
-import { getControlsVariablesList, ObjectType } from './utils';
-export class ModelValidator {
-  tree: GoalTree
-  typesMap: Map<string, string>
-  tasksVarMap: Map<string, Map<string, string>>
-  hddl: string
-
-  errorList = []
+import { GOAL_NODE_TYPE_GOAL, GOAL_NODE_TYPE_TASK, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY } from './utils/constants';
+import { getControlsVariablesList, ObjectType } from './utils/utils';
+import chalk from 'chalk';
+export class ModelValidator extends ModelRulesValidator {
 
   GOAL_ID = 'G'
   TASK_ID = 'AT'
@@ -30,10 +26,7 @@ export class ModelValidator {
     tasksVarMap: Map<string, Map<string, string>>,
     hddl: string
   ) {
-    this.tree = tree
-    this.tasksVarMap = tasksVarMap
-    this.typesMap = typesMap
-    this.hddl = hddl
+    super(tree, typesMap, tasksVarMap, hddl)
 
     this.goalIdChecker = this.idChecker(this.GOAL_ID)
     this.taskIdChecker = this.idChecker(this.TASK_ID)
@@ -42,9 +35,13 @@ export class ModelValidator {
   resetValidator() {
     this.goalIdChecker = this.idChecker(this.GOAL_ID)
     this.taskIdChecker = this.idChecker(this.TASK_ID)
+
+    this.errorList = []
+    this.currentNodeRef.node = { ...this.tree.root }
   }
 
   validateModel() {
+    console.log(chalk.greenBright('Validating Goal Model'))
     let visited: any[] = []
     let current = this.tree.root;
 
@@ -62,9 +59,12 @@ export class ModelValidator {
     };
     validate(current, context, variablesList);
 
+    console.log(chalk.greenBright('Validation finished'))
     return visited;
   }
   private validateNode(node: Node, context: any, variablesList: ObjectType) {
+    this.currentNodeRef.node = { ...node }
+
     const goalData = node.goalData
     switch (goalData?.type) {
       case GOAL_NODE_TYPE_GOAL:
@@ -84,13 +84,12 @@ export class ModelValidator {
   private manageVariablesList(variablesList: ObjectType, node: Node) {
     const { Controls } = node.goalData.customProperties
     if (Controls) {
-      ModelRulesValidator.validateControlsProperty(Controls)
+      this.validateControlsProperty(Controls)
 
       getControlsVariablesList(Controls).forEach(variable => {
         const { identifier, type } = variable
         if (variablesList[identifier] !== undefined) {
-          // TODO - erro redefinição de variavel
-          console.error('erro redefinição de variável')
+          ErrorLogger.log(`Redeclaration of variable: ${identifier}`)
         }
         variablesList[identifier] = type
       })
@@ -103,11 +102,24 @@ export class ModelValidator {
   }
 
   private validateGoal(node: Node, context: any, variablesList: ObjectType) {
-    ModelRulesValidator.validateGoalTextProperty(node.goalData.text)
-    ModelRulesValidator.validateId(node.goalData.text, this.goalIdChecker())
-    ModelRulesValidator.validateGoalType(node.goalData.customProperties.GoalType)
+    this.validateGoalTextProperty(node.goalData.text)
+    this.validateId(node.goalData.text, this.goalIdChecker())
+    this.validateGoalType(node.goalData.customProperties.GoalType)
 
-    ModelRulesValidator.validateCreationConditionProperty(node.goalData.customProperties.CreationCondition)
+    this.validateCreationConditionProperty(node.goalData.customProperties.CreationCondition)
+
+    const validateQueryGoal = () => {
+      this.validateQueryGoalProperties(node.goalData.customProperties)
+      this.validateQueryGoalQueriedProperty(node.goalData.customProperties, variablesList)
+      this.validateNodeIsALeaf(node.children)
+    }
+
+    const validateAchieveGoal = () => {
+      this.validateAchieveGoalProperties(node.goalData.customProperties)
+      this.validateMonitorsProperty(node.goalData.customProperties.Monitors, variablesList)
+      this.validateAchieveGoalAchieveCondition(node.goalData.customProperties, variablesList)
+      this.validateNodeIsNotALeaf(node.children)
+    }
 
     const { GoalType } = node.goalData.customProperties
 
@@ -123,26 +135,25 @@ export class ModelValidator {
           break
       }
     }
-
-    function validateQueryGoal() {
-      ModelRulesValidator.validateQueryGoalProperties(node.goalData.customProperties)
-      ModelRulesValidator.validateQueryGoalQueriedProperty(node.goalData.customProperties, variablesList)
-      ModelRulesValidator.validateNodeIsALeaf(node.children)
-    }
-
-    function validateAchieveGoal() {
-      ModelRulesValidator.validateAchieveGoalProperties(node.goalData.customProperties)
-      ModelRulesValidator.validateMonitorsProperty(node.goalData.customProperties.Monitors, variablesList)
-      ModelRulesValidator.validateAchieveGoalAchieveCondition(node.goalData.customProperties, variablesList)
-      ModelRulesValidator.validateNodeIsNotALeaf(node.children)
-    }
   }
 
 
   private validateTask(node: Node, context: any, variablesList: ObjectType) {
-    ModelRulesValidator.validateId(node.goalData.text, this.taskIdChecker())
-    ModelRulesValidator.validateTaskTextProperty(node.goalData.text)
-    ModelRulesValidator.validateTaskProperties(node.goalData.customProperties)
+    this.validateId(node.goalData.text, this.taskIdChecker())
+    this.validateTaskTextProperty(node.goalData.text)
+    this.validateTaskProperties(node.goalData.customProperties)
+    this.validateTaskNameHddlMap(node.goalData.text, this.hddl)
+    // TODO - ver com Eric, parameters no HDDL e sem parameters no Model, só current_room
+    // typeMap -> Map(1) { 'Room' => 'room' }
+    //   'AT1' => Map(1) { 'current_room' => '?rm' },
+    // possível mapear "current_room: Room" para rm - room
+    // mas quem mapeia "?rt - robotteam" ??
+
+    this.validateTaskVariablesMapOnHddl(node.goalData.text, this.hddl, variablesList, this.typesMap, this.tasksVarMap)
+
+    // TODO - Validar se parent tem Monitor
+    // console.log(this.typesMap)
+    // console.log(this.tasksVarMap)
   }
 
 

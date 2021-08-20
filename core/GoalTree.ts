@@ -1,11 +1,14 @@
-import { link } from 'fs';
-import { GoalModel, GoalNode, GoalNodeTree, Link } from './definitions/goal-model.types';
-
-
+import { GoalNode, Link } from './definitions/goal-model.types';
 interface NodeSet {
   [index: string]: Node
 }
 
+export interface NodeObject {
+  parent: Node | null
+  children: Node[]
+  goalData: GoalNode
+  parentRelation: string;
+}
 export class Node {
   parent: Node | null
   children: Node[]

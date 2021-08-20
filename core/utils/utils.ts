@@ -7,6 +7,9 @@ export interface VariablesType {
   type: string;
 }
 
+export const getTaskId = (taskText: string) => taskText.split(':')?.shift()?.trim()
+
+export const getTaskName = (taskText: string) => taskText.split(':')?.pop()?.trim()
 
 export const getControlsVariablesList = (variableText: string): VariablesType[] => {
   const variablesList = variableText.split(',')

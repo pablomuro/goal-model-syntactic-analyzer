@@ -1,7 +1,8 @@
-import { GOAL_TYPE_QUERY, GOAL_TYPE_PERFORM, GOAL_TYPE_ACHIEVE, QUERIED_PROPERTY, CONTROLS, ACHIEVED_CONDITION, MONITORS, CREATION_CONDITION } from './constants';
-import { getControlsVariablesList, ObjectType, isVariableTypeSequence, getMonitorsVariablesList } from './utils';
+import { ErrorLogger } from './ErroLogger';
+import { GOAL_TYPE_QUERY, GOAL_TYPE_PERFORM, GOAL_TYPE_ACHIEVE, QUERIED_PROPERTY, CONTROLS, ACHIEVED_CONDITION, MONITORS, CREATION_CONDITION, WORLD_DB, TASK_TYPE } from './utils/constants';
+import { getControlsVariablesList, ObjectType, isVariableTypeSequence, getMonitorsVariablesList, getTaskName, getTaskId } from './utils/utils';
 import { NodeCustomProperties } from './definitions/goal-model.types';
-import { GoalTree, Node } from './GoalTree';
+import { GoalTree, Node, NodeObject } from './GoalTree';
 
 const variableIdentifierRegex = '([a-zA-Z][a-zA-Z_.0-9]*)'
 const variableTypeRegex = '[A-Z][a-zA-Z_0-9]*'
@@ -12,247 +13,264 @@ const achieveGoalConditionOr = `( (=|<>|(>|<)=?) ([0-9.]+)|)`
 const achieveGoalConditionRegex = `\\!?${variableIdentifierRegex}${achieveGoalConditionOr}`
 
 export class ModelRulesValidator {
+  tree: GoalTree
+  typesMap: Map<string, string>
+  tasksVarMap: Map<string, Map<string, string>>
+  hddl: string
 
-  static validateGoalTextProperty(nodeText: string) {
+  errorList = []
+
+  currentNodeRef: { node: NodeObject }
+  constructor(
+    tree: GoalTree,
+    typesMap: Map<string, string>,
+    tasksVarMap: Map<string, Map<string, string>>,
+    hddl: string
+  ) {
+    this.tree = tree
+    this.tasksVarMap = tasksVarMap
+    this.typesMap = typesMap
+    this.hddl = hddl
+    this.errorList = []
+    this.currentNodeRef = {
+      node: { ...tree.root }
+    }
+    ErrorLogger.currentNodeRef = this.currentNodeRef
+
+  }
+
+  validateGoalTextProperty(nodeText: string) {
     const goalTextPropertyRegex = /^G[0-9]+: (\w*\s*)*(([G[0-9]+;G[0-9]+])|([G[0-9]+\#G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
 
     if (!this.checkMatch(nodeText, goalTextPropertyRegex)) {
-      // TODO - Mostrar erro no nome
-      console.error('error')
+      ErrorLogger.log('Bad Goal Name Construction')
+      // TODO - se erro, falar qual erro, ver groups e oq ta faltando
     }
   }
 
-  static validateTaskTextProperty(taskText: string) {
+  validateTaskTextProperty(taskText: string) {
     const taskTextPropertyRegex = /^AT[0-9]+: (\w+\s*)+$/g
 
     if (!this.checkMatch(taskText, taskTextPropertyRegex)) {
-      // TODO - Mostrar erro no nome
-      console.error('error')
+      ErrorLogger.log('Bad Task Name Construction')
     }
   }
 
-  static validateId(nodeText: string, validId: string) {
-    if (!nodeText.includes(validId)) {
-      // TODO - Mostrar erro de Goal Id errado
-      console.error('error')
+  validateId(nodeText: string, validId: string) {
+    if (!nodeText.includes(`${validId}:`)) {
+      ErrorLogger.log(`Bad ID sequence\nID should be: ${validId}`)
     }
   }
 
-  static validateGoalType(goalType: string | undefined) {
+  validateGoalType(goalType: string | undefined) {
     const goalTypeList = [GOAL_TYPE_QUERY, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM]
     if (goalType && !goalTypeList.includes(goalType)) {
-      // TODO
-      console.error("Error - GoalType invalido")
+      ErrorLogger.log("Invalid GoalType")
     }
   }
 
-
-  static validateNodeIsALeaf(children: Node[]) {
+  validateNodeIsALeaf(children: Node[]) {
     if (children.length != 0) {
-      // TODO - Mostrar erro de não é folha
-      console.error('error não é uma folha')
+      ErrorLogger.log('Node must be a leaf, but node has children')
     }
   }
 
-  static validateNodeIsNotALeaf(children: Node[]) {
+  validateNodeIsNotALeaf(children: Node[]) {
     if (children.length == 0) {
-      // TODO - Mostrar erro de não é folha
-      console.error('error no é uma folha')
+      ErrorLogger.log('Node cannot be a leaf, but node has no children')
     }
   }
 
-  static validateQueryGoalProperties(_properties: NodeCustomProperties) {
+  validateQueryGoalProperties(_properties: NodeCustomProperties) {
     const requeridProperties = [QUERIED_PROPERTY, CONTROLS]
     const cannotContains = [ACHIEVED_CONDITION]
-    this.validateProperties(_properties, requeridProperties, cannotContains)
+    this.validateProperties(_properties, GOAL_TYPE_QUERY, requeridProperties, cannotContains)
   }
 
-  static validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
+  validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
     const queriedPropertyValue = properties.QueriedProperty
-    const variable = properties.Controls
     const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(${variableIdentifierRegex}:${variableTypeRegex} \\| ${queryGoalConditionRegex}\\)$`, 'g')
 
-    if (queriedPropertyValue && variable) {
+    if (queriedPropertyValue) {
       if (!this.checkMatch(queriedPropertyValue, queriedPropertyRegex)) {
-        // TODO - Mostrar erro queried property regex
-        console.error('error')
+        ErrorLogger.log('Bad QueriedProperty Construction')
+        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
 
-      // regex, colocar group no r, e checar se ele bate com o r depois da barra 
       const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
       if (matchGroupList) {
-        // regex, colocar group no r, e checar se ele bate com o r depois da barra 
+
         let [_, queriedVariable, queryVariable, queryVariableInCondition] = matchGroupList
         queryVariableInCondition = queryVariableInCondition.split('.')[0]
         if (queryVariable != queryVariableInCondition) {
-          // TODO - Mostrar erro variaveis com nomes diferentes
-          console.error('error')
+          ErrorLogger.log(`Query variable: ${queryVariable} not equal to the variable:${queryVariableInCondition} in the condition`)
         }
 
-        // se tem world_db ou se a variável está na lista e é do tipo sequencie
-        if (queriedVariable !== 'world_db' && variablesList[queriedVariable] == undefined) {
-          // TODO - Mostrar erro variável não declarada
-          console.error('error Undeclared variable')
+        // TODO - ver se variavel tem q ser uma Sequencie
+        if (queriedVariable !== WORLD_DB && variablesList[queriedVariable] == undefined) {
+          ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
         }
 
         const controlsValue = properties.Controls
         if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
-          // TODO - error
-          console.error('error necessaria a declaração de uma variavel para receber o valor de queriedProperty')
+          ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
         }
 
       }
 
     } else {
-      // TODO - Error
-      console.error('error')
+      ErrorLogger.log('No QueriedProperty value defined')
     }
   }
 
-  static validateAchieveGoalProperties(_properties: NodeCustomProperties) {
+  validateAchieveGoalProperties(_properties: NodeCustomProperties) {
     const requeridProperties = [ACHIEVED_CONDITION, CONTROLS, MONITORS]
     const cannotContains = [QUERIED_PROPERTY]
 
-    this.validateProperties(_properties, requeridProperties, cannotContains)
+    this.validateProperties(_properties, GOAL_TYPE_ACHIEVE, requeridProperties, cannotContains)
   }
 
-  static validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
+  validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
     const achieveConditionValue = properties.AchieveCondition
-    const variable = properties.Controls
     const achieveConditionRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(${variableIdentifierRegex}(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
 
-    if (achieveConditionValue && variable) {
+    if (achieveConditionValue) {
       // TODO - achieveCondition tem que ter 2 tipos de expressão, uma Normal ou usando forAll
       // ver com o Eric como que é uma normal
       if (!this.checkMatch(achieveConditionValue, achieveConditionRegex)) {
-        // TODO - Mostrar erro queried property regex
-        console.error('error 1')
+        ErrorLogger.log('Bad AchieveCondition Construction')
+        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
 
-      // regex, colocar group no current_room, e checar se ele bate com o current_room depois da barra
       const matchGroupList = new RegExp(achieveConditionRegex).exec(achieveConditionValue)
       if (matchGroupList) {
-        // regex, colocar group no current_room, e checar se ele bate com o current_room depois da barra
         let [_, iteratedVariable, iterationVariable, iterationVariableInCondition] = matchGroupList
 
         iterationVariableInCondition = iterationVariableInCondition.split('.')[0]
         if (iterationVariable != iterationVariableInCondition) {
-          // TODO - Mostrar erro variaveis com nomes diferentes
-          console.error('error 2')
+          ErrorLogger.log(`Iteration variable: ${iterationVariable} not equal to the variable:${iterationVariableInCondition} in the condition`)
         }
 
-        // se a variável está na lista
         if (variablesList[iteratedVariable] == undefined) {
-          // TODO - Mostrar erro variável não declarada
-          console.error('error Undeclared variable')
+          ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
         }
 
-        // se a variável  é do tipo sequencie
         const variableType = variablesList[iteratedVariable]
         if (variableType && !isVariableTypeSequence(variableType)) {
-          // TODO - Mostrar erro variável não declarada
-          console.error('error Variable not type sequence')
+          ErrorLogger.log('Iterated variable type is not a Sequence')
         }
 
         const monitorsValue = properties.Monitors
         if (monitorsValue && !getMonitorsVariablesList(monitorsValue).find(variable => variable.identifier == iteratedVariable)) {
-          // TODO - error
-          console.error('error iteratedVariable not present in Monitors property')
+          ErrorLogger.log(`Iterated variable: ${iteratedVariable} not present in monitored variables list`)
         }
 
         const controlsValue = properties.Controls
         if (controlsValue && !getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable)) {
-          // TODO - error
-          console.error('error iterationVariable not present in Controls')
+          ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in monitored variables list`)
         }
       }
     } else {
-      // TODO - Error
-      console.error('error')
+      ErrorLogger.log('No AchieveCondition value defined')
     }
   }
 
-  static validateTaskProperties(_properties: NodeCustomProperties) {
+  validateTaskProperties(_properties: NodeCustomProperties) {
     // TODO - ver Propriedades Required e Cannot
     const requeridProperties: string[] = []
     const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, CREATION_CONDITION]
 
-    this.validateProperties(_properties, requeridProperties, cannotContains)
+    this.validateProperties(_properties, TASK_TYPE, requeridProperties, cannotContains)
   }
 
-  static validateMonitorsProperty(monitorsValue: string | undefined, variablesList: ObjectType) {
+  validateTaskNameHddlMap(taskText: string, hddl: string) {
+    const taskName = getTaskName(taskText)
+    if (taskName) {
+      const taskHddlDefinition = `(:task ${taskName}`
+
+      if (!hddl.includes(taskHddlDefinition)) {
+        ErrorLogger.log(`Task: ${taskName} not mapped on .hddl file`)
+      }
+    }
+  }
+
+  validateTaskVariablesMapOnHddl(taskText: string, hddl: string, variablesList: ObjectType, typesMap: Map<string, string>, tasksVarMap: Map<string, Map<string, string>>,) {
+    // TODO - ver 
+    const _type = variablesList['current_room']
+    const taskId = getTaskId(taskText)
+    if (_type && taskId) {
+      const hddlVariableIdentifier = tasksVarMap.get(taskId)?.get('current_room')
+      const hddlType = typesMap.get(_type)
+      const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`
+      // console.log(hddlVariable)
+      // ErrorLogger.log('Types diferentes no HDDL')
+    }
+
+  }
+
+  validateMonitorsProperty(monitorsValue: string | undefined, variablesList: ObjectType) {
     if (monitorsValue) {
       const optionalTypeRegex = `( : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))?`
       const monitorsPropertyRegex = new RegExp(`^(${variableIdentifierRegex}${optionalTypeRegex})( , (${variableIdentifierRegex}${optionalTypeRegex}))*$`, 'g')
       if (!this.checkMatch(monitorsValue, monitorsPropertyRegex)) {
-        // TODO - Error de formação da variável
-        console.error('Error de formação da variável, error')
-        console.error(monitorsPropertyRegex)
+        ErrorLogger.log('Bad Monitors Construction')
+        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
-
 
       getMonitorsVariablesList(monitorsValue).forEach(variable => {
         if (!variablesList[variable.identifier]) {
-          // TODO - error
-          console.error('error Variável não foi instanciada')
+          ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors has not instantiated`)
         }
       })
     } else {
-      // TODO -  Monitors sem variaveis
-      console.error('error Monitors sem variaveis')
+      ErrorLogger.log('No Monitors value defined')
     }
   }
-  static validateControlsProperty(controlsValue: string | undefined) {
+  validateControlsProperty(controlsValue: string | undefined) {
     if (controlsValue) {
       // TODO - Verificar com Eric regex do controls value, controls pode ser uma lista 
       const controlsPropertyRegex = new RegExp(`^(${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))( , (${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex})))*$`, 'g')
       if (!this.checkMatch(controlsValue, controlsPropertyRegex)) {
-        // TODO - Error de formação da variável
-        console.error('Error de formação da variável, error')
-        console.error(controlsPropertyRegex)
+        ErrorLogger.log('Bad Controls Construction')
+        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
-
 
       getControlsVariablesList(controlsValue).forEach(variable => {
         const { identifier, type } = variable
         if (!(identifier)) {
-          // TODO - Error
-          console.error('error')
+          ErrorLogger.log('Variable in Controls property error')
         }
         if (!(type)) {
-          // TODO - Error
-          console.error('error')
+          ErrorLogger.log('Variable Type in Controls property is required')
         }
       })
     } else {
-      // TODO error
-      console.error('error')
+      ErrorLogger.log('No Controls value defined')
     }
   }
-  static validateCreationConditionProperty(creationConditionValue: string | undefined) {
+  validateCreationConditionProperty(creationConditionValue: string | undefined) {
     if (creationConditionValue) {
       let creationConditionRegex;
       if (creationConditionValue.includes('condition')) {
         creationConditionRegex = new RegExp(`assertion condition "(\\!|not )?${variableIdentifierRegex}"`, 'g')
         if (!this.checkMatch(creationConditionValue, creationConditionRegex)) {
-          // TODO - Mostrar erro queried property regex
-          console.error('error')
+          ErrorLogger.log('Bad CreationCondition Construction')
+          // TODO - se erro, falar qual erro, ver groups e oq ta faltando
         }
       } else if (creationConditionValue.includes('trigger')) {
         // TODO - Eric, ver regex para a lista de eventos de trigger
         creationConditionRegex = new RegExp(`assertion trigger ""`, 'g')
         if (!this.checkMatch(creationConditionValue, creationConditionRegex)) {
-          // TODO - Mostrar erro queried property regex
-          console.error('error')
+          ErrorLogger.log('Bad CreationCondition Construction')
+          // TODO - se erro, falar qual erro, ver groups e oq ta faltando
         }
       } else {
-        // TODO 
-        console.error('error - creationConditionValue bad format')
+        ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`)
       }
 
     }
   }
-  private static checkMatch(text: string, regex: RegExp) {
+  private checkMatch(text: string, regex: RegExp) {
     const match = text.match(new RegExp(regex))
     if (match != null && match[0] == text) {
       return true
@@ -261,18 +279,16 @@ export class ModelRulesValidator {
     }
   }
 
-  private static validateProperties(_properties: NodeCustomProperties, requeridProperties: string[], cannotContains: string[]) {
+  private validateProperties(_properties: NodeCustomProperties, nodeType: string, requeridProperties: string[], cannotContains: string[]) {
     requeridProperties.forEach(requeridProperty => {
       if (!_properties.hasOwnProperty(requeridProperty)) {
-        // TODO - Mostrar erro de Propriedade Required
-        console.error('error Propriedade Required')
+        ErrorLogger.log(`Property: ${requeridProperty} is required on type: ${nodeType}`)
       }
     })
 
     cannotContains.forEach(cannotContainProperty => {
       if (_properties.hasOwnProperty(cannotContainProperty)) {
-        // TODO - Mostrar erro de cannotContains
-        console.error('error Propriedade Cannot Contais')
+        ErrorLogger.log(`Node type: ${nodeType} cannot contain the property: ${cannotContainProperty}`)
       }
     })
   }
