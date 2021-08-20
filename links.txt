@@ -1,5 +1,7 @@
 https://www.youtube.com/watch?v=rXl_m7FJgOo
 
+goda ->  http://pistar-goda.herokuapp.com/
+
 ===== PARSER HDDL ========
 
 GNU BISON -> https://www.gnu.org/software/bison/
@@ -8,6 +10,8 @@ flex fast lexical analyzer
 JS -> https://github.com/zaach/jison 
    -> http://canna71.github.io/Jacob/
 
+https://tomassetti.me/parsing-in-javascript/
+https://github.com/GregRos/parjs
 
 
 Add C++ to Node
@@ -23,3 +27,16 @@ https://github.com/vercel/pkg
 https://www.section.io/engineering-education/compile-your-nodejs-application-into-a-exe-file/
 https://medium.com/jspoint/how-to-create-an-executable-exe-file-from-javascript-code-using-node-js-45154ba4de20
 
+
+
+================ Tree JS =======================
+https://github.com/anirvann/treeish
+
+
+https://medium.com/@kenny.hom27/breadth-first-vs-depth-first-tree-traversal-in-javascript-48df2ebfc6d1
+
+https://levelup.gitconnected.com/how-to-traverse-a-tree-using-javascript-c9a79826e819
+
+https://medium.com/swlh/traversing-trees-breadth-first-and-depth-first-searches-with-javascript-316f23c9fe8f
+
+https://www.digitalocean.com/community/tutorials/js-tree-traversal
