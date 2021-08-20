@@ -18,8 +18,6 @@ export class ModelRulesValidator {
   tasksVarMap: Map<string, Map<string, string>>
   hddl: string
 
-  errorList = []
-
   currentNodeRef: { node: NodeObject }
   constructor(
     tree: GoalTree,
@@ -31,7 +29,6 @@ export class ModelRulesValidator {
     this.tasksVarMap = tasksVarMap
     this.typesMap = typesMap
     this.hddl = hddl
-    this.errorList = []
     this.currentNodeRef = {
       node: { ...tree.root }
     }
@@ -40,7 +37,7 @@ export class ModelRulesValidator {
   }
 
   validateGoalTextProperty(nodeText: string) {
-    const goalTextPropertyRegex = /^G[0-9]+: (\w*\s*)*(([G[0-9]+;G[0-9]+])|([G[0-9]+\#G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
+    const goalTextPropertyRegex = /^G[0-9]+: (\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
 
     if (!this.checkMatch(nodeText, goalTextPropertyRegex)) {
       ErrorLogger.log('Bad Goal Name Construction')

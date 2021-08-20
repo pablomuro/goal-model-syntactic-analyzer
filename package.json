@@ -2,12 +2,12 @@
   "name": "goal-model-syntactic-analyzer",
   "version": "1.0.0",
   "description": "",
-  "bin": "build/index.js",
+  "bin": "build/core/index.js",
   "scripts": {
     "start": "",
     "dev": "nodemon --watch './**/*.ts' --exec 'clear;ts-node' core/index.ts",
     "build": "rm -rf ./build && tsc --build",
-    "build:run": "rm -rf ./build && tsc --build && node ./build/index.js",
+    "build:run": "rm -rf ./build && tsc --build && node ./build/core/index.js",
     "pkg": "npm run build && pkg package.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

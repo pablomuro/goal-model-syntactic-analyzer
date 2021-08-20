@@ -1,18 +1,14 @@
-import { ModelRulesValidator } from './ModelRulesValidator';
-import { ModelValidator } from './ModelValidator';
-
-import { GoalNode, GoalModel } from './definitions/goal-model.types';
+import { ModelRulesValidatorTest } from './../test';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { Config } from './definitions/config.types';
-import { mkdir, readdir, readFile, writeFile } from 'fs/promises';
-import path from 'path'
-import { GoalTree, Node } from './GoalTree';
+import { GoalModel } from './definitions/goal-model.types';
+import { GoalTree } from './GoalTree';
+import { ModelValidator } from './ModelValidator';
 
 const configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
 const goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
 const hddlPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'hddl', 'Room Cleaning.hddl')
-
-
-const errorList = []
 
 main()
 async function main() {
@@ -27,7 +23,8 @@ async function main() {
   if (tree) {
     const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl)
     modelValidator.resetValidator()
-    modelValidator.validateModel()
+    // modelValidator.validateModel()
+    new ModelRulesValidatorTest(modelValidator).test()
   }
 
 }

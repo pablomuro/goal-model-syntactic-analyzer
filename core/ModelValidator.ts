@@ -35,9 +35,8 @@ export class ModelValidator extends ModelRulesValidator {
   resetValidator() {
     this.goalIdChecker = this.idChecker(this.GOAL_ID)
     this.taskIdChecker = this.idChecker(this.TASK_ID)
-
-    this.errorList = []
     this.currentNodeRef.node = { ...this.tree.root }
+    ErrorLogger.errorCount = 0
   }
 
   validateModel() {
