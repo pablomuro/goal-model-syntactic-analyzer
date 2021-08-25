@@ -44,3 +44,16 @@ https://www.digitalocean.com/community/tutorials/js-tree-traversal
 
 ========= Color Terminal ===============
 https://github.com/chalk/chalk
+
+
+[9:21 AM] Eric Bernd Gil
+    current_room : Room
+​[9:21 AM] Eric Bernd Gil
+    current_room.objects
+​[9:22 AM] Eric Bernd Gil
+    Caso 1: rooms->select ...
+​[9:22 AM] Eric Bernd Gil
+    Caso 2: rooms.attr->select ...
+​[9:23 AM] Eric Bernd Gil
+    Caso 1 verifica, Caso 2 não
+

@@ -5,6 +5,8 @@ export class ErrorLogger {
   static currentNodeRef: { node: NodeObject } = {} as { node: NodeObject }
   static errorCount: number = 0
 
+  static errorList = []
+
   static log(erroMessage: any) {
     const styledErrorMessage = chalk.bold.red(erroMessage)
     const nodeName = this.currentNodeRef.node.goalData.text

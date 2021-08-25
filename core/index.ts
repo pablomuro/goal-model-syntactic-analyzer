@@ -6,9 +6,9 @@ import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
 import { ModelValidator } from './ModelValidator';
 
-const configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
-const goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
 const hddlPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'hddl', 'Room Cleaning.hddl')
+const goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
+const configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
 
 main()
 async function main() {
@@ -30,7 +30,7 @@ async function main() {
 }
 
 function parseConfigFile(configFile: any) {
-  // TODO - vou ter q validar o json de configuração???
+  // TODO - se não existir da erro
   if (!configFile.type_mapping) return;
   console.log(configFile.var_mapping)
   console.log(configFile.type_mapping)

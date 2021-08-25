@@ -28,8 +28,8 @@ export class ModelRulesValidatorTest {
     this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms[G2;G3]') // Pass
     this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms [FALLBACK(G1)]') // Pass
     this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms [FALLBACK(G1,G2)]') // Pass
+    this.modelValidator.validateGoalTextProperty('G1:Clean All Dirty Rooms [G2;G3]') // Pass
     // Estrutura errada
-    // this.modelValidator.validateGoalTextProperty('G1:Clean All Dirty Rooms [G2;G3]') // Error
     // this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms [G2;G3') // Error
     // this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms [G2%G3]') // Error
     // this.modelValidator.validateGoalTextProperty('G1: Clean All Dirty Rooms [G2G3]') // Error
@@ -60,8 +60,9 @@ export class ModelRulesValidatorTest {
 
     //validateQueryGoalProperties
     //Pass
+    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select(r:Room | !r.is_clean && r.abc)'
     this.modelValidator.validateQueryGoalProperties(queryNode.goalData.customProperties)
-
+    this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
 
 
     console.log(`Total de errors: ${ErrorLogger.errorCount}`)

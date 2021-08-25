@@ -4,13 +4,17 @@ import { getControlsVariablesList, ObjectType, isVariableTypeSequence, getMonito
 import { NodeCustomProperties } from './definitions/goal-model.types';
 import { GoalTree, Node, NodeObject } from './GoalTree';
 
+const eventListRegex = '[a-zA-Z_0-9]*(\s*,\s*[a-zA-Z_0-9])*'
 const variableIdentifierRegex = '([a-zA-Z][a-zA-Z_.0-9]*)'
 const variableTypeRegex = '[A-Z][a-zA-Z_0-9]*'
-const queryGoalConditionOr = `( (=|<>) ("[a-zA-Z]+"|[0-9.]+)| (>|<)=? [0-9.]+| ${variableIdentifierRegex} in ${variableIdentifierRegex}|)`
-const queryGoalConditionRegex = `\\!?${variableIdentifierRegex}${queryGoalConditionOr}`
+const notRegex = '\\!?'
 
-const achieveGoalConditionOr = `( (=|<>|(>|<)=?) ([0-9.]+)|)`
-const achieveGoalConditionRegex = `\\!?${variableIdentifierRegex}${achieveGoalConditionOr}`
+const queryGoalConditionOr =
+  `${notRegex}${variableIdentifierRegex} ((=|<>) ("[a-zA-Z]+"|[0-9.]+)|(>|<)=? [0-9.]+|(in|&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
+const queryGoalConditionRegex = `(${notRegex}${variableIdentifierRegex}|${queryGoalConditionOr}|)`
+
+const achieveGoalConditionOr = `(${notRegex}${variableIdentifierRegex} (=|<>|(>|<)=?) ([0-9.]+)|(&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
+const achieveGoalConditionRegex = `(${notRegex}${variableIdentifierRegex}|${achieveGoalConditionOr}|)`
 
 export class ModelRulesValidator {
   tree: GoalTree
@@ -37,11 +41,12 @@ export class ModelRulesValidator {
   }
 
   validateGoalTextProperty(nodeText: string) {
-    const goalTextPropertyRegex = /^G[0-9]+: (\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
+    const goalTextPropertyRegex = /^G[0-9]+:\s*(\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
 
     if (!this.checkMatch(nodeText, goalTextPropertyRegex)) {
       ErrorLogger.log('Bad Goal Name Construction')
-      // TODO - se erro, falar qual erro, ver groups e oq ta faltando
+      // TODO - Erros via match vão ter q ser feitos novos regex
+      // caso necessário refinamento do erro
     }
   }
 
@@ -86,9 +91,11 @@ export class ModelRulesValidator {
 
   validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
     const queriedPropertyValue = properties.QueriedProperty
-    const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(${variableIdentifierRegex}:${variableTypeRegex} \\| ${queryGoalConditionRegex}\\)$`, 'g')
+    const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(${variableIdentifierRegex}:${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
 
     if (queriedPropertyValue) {
+      const match = queriedPropertyValue.match(new RegExp(queriedPropertyRegex))
+      console.log(match)
       if (!this.checkMatch(queriedPropertyValue, queriedPropertyRegex)) {
         ErrorLogger.log('Bad QueriedProperty Construction')
         // TODO - se erro, falar qual erro, ver groups e oq ta faltando
@@ -96,14 +103,13 @@ export class ModelRulesValidator {
 
       const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
       if (matchGroupList) {
-
         let [_, queriedVariable, queryVariable, queryVariableInCondition] = matchGroupList
         queryVariableInCondition = queryVariableInCondition.split('.')[0]
         if (queryVariable != queryVariableInCondition) {
           ErrorLogger.log(`Query variable: ${queryVariable} not equal to the variable:${queryVariableInCondition} in the condition`)
         }
 
-        // TODO - ver se variavel tem q ser uma Sequencie
+        // TODO - ver depois questão do sequence anotado
         if (queriedVariable !== WORLD_DB && variablesList[queriedVariable] == undefined) {
           ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
         }
@@ -112,9 +118,7 @@ export class ModelRulesValidator {
         if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
           ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
         }
-
       }
-
     } else {
       ErrorLogger.log('No QueriedProperty value defined')
     }
@@ -129,17 +133,20 @@ export class ModelRulesValidator {
 
   validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
     const achieveConditionValue = properties.AchieveCondition
-    const achieveConditionRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(${variableIdentifierRegex}(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
+    const achieveConditionUniversalRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(${variableIdentifierRegex}(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
+    const achieveConditionRegex = new RegExp('')
 
     if (achieveConditionValue) {
-      // TODO - achieveCondition tem que ter 2 tipos de expressão, uma Normal ou usando forAll
-      // ver com o Eric como que é uma normal
-      if (!this.checkMatch(achieveConditionValue, achieveConditionRegex)) {
+      const testAchieveConditionRegex = (achieveConditionValue.includes('->forAll') ? achieveConditionUniversalRegex : achieveConditionRegex)
+      // TODO - achieveCondition expressão normal é somente o Fi
+      if (!this.checkMatch(achieveConditionValue, testAchieveConditionRegex)) {
         ErrorLogger.log('Bad AchieveCondition Construction')
         // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
 
-      const matchGroupList = new RegExp(achieveConditionRegex).exec(achieveConditionValue)
+      if (!achieveConditionValue.includes('->forAll')) return
+
+      const matchGroupList = new RegExp(testAchieveConditionRegex).exec(achieveConditionValue)
       if (matchGroupList) {
         let [_, iteratedVariable, iterationVariable, iterationVariableInCondition] = matchGroupList
 
@@ -152,6 +159,7 @@ export class ModelRulesValidator {
           ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
         }
 
+        // TODO - Sequence 
         const variableType = variablesList[iteratedVariable]
         if (variableType && !isVariableTypeSequence(variableType)) {
           ErrorLogger.log('Iterated variable type is not a Sequence')
@@ -164,16 +172,16 @@ export class ModelRulesValidator {
 
         const controlsValue = properties.Controls
         if (controlsValue && !getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable)) {
-          ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in monitored variables list`)
+          ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in control variables list`)
         }
       }
     } else {
+      // TODO - Essa condição ainda será validada, atualmente pode ser em Branco
       ErrorLogger.log('No AchieveCondition value defined')
     }
   }
 
   validateTaskProperties(_properties: NodeCustomProperties) {
-    // TODO - ver Propriedades Required e Cannot
     const requeridProperties: string[] = []
     const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, CREATION_CONDITION]
 
@@ -225,7 +233,7 @@ export class ModelRulesValidator {
   }
   validateControlsProperty(controlsValue: string | undefined) {
     if (controlsValue) {
-      // TODO - Verificar com Eric regex do controls value, controls pode ser uma lista 
+      // TODO - Questão de Sequence, validar futuramente
       const controlsPropertyRegex = new RegExp(`^(${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))( , (${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex})))*$`, 'g')
       if (!this.checkMatch(controlsValue, controlsPropertyRegex)) {
         ErrorLogger.log('Bad Controls Construction')
@@ -235,10 +243,10 @@ export class ModelRulesValidator {
       getControlsVariablesList(controlsValue).forEach(variable => {
         const { identifier, type } = variable
         if (!(identifier)) {
-          ErrorLogger.log('Variable in Controls property error')
+          ErrorLogger.log('Variable identifier in Controls property has an error')
         }
         if (!(type)) {
-          ErrorLogger.log('Variable Type in Controls property is required')
+          ErrorLogger.log('Variable type in Controls property is required')
         }
       })
     } else {
@@ -255,8 +263,7 @@ export class ModelRulesValidator {
           // TODO - se erro, falar qual erro, ver groups e oq ta faltando
         }
       } else if (creationConditionValue.includes('trigger')) {
-        // TODO - Eric, ver regex para a lista de eventos de trigger
-        creationConditionRegex = new RegExp(`assertion trigger ""`, 'g')
+        creationConditionRegex = new RegExp(`assertion trigger "${eventListRegex}"`, 'g')
         if (!this.checkMatch(creationConditionValue, creationConditionRegex)) {
           ErrorLogger.log('Bad CreationCondition Construction')
           // TODO - se erro, falar qual erro, ver groups e oq ta faltando
