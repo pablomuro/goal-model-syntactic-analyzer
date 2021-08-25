@@ -9,9 +9,12 @@ class ErrorLogger {
     static log(erroMessage) {
         const styledErrorMessage = chalk_1.default.bold.red(erroMessage);
         const nodeName = this.currentNodeRef.node.goalData.text;
-        console.error(chalk_1.default.bold.red(`Error on Node: ${nodeName}`));
-        console.error(styledErrorMessage);
+        console.error(chalk_1.default.bold.red(`Error on node -> "${nodeName}"`));
+        console.error(styledErrorMessage + '\n');
+        this.errorCount++;
     }
 }
 exports.ErrorLogger = ErrorLogger;
 ErrorLogger.currentNodeRef = {};
+ErrorLogger.errorCount = 0;
+ErrorLogger.errorList = [];

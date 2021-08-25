@@ -58,13 +58,59 @@ export class ModelRulesValidatorTest {
     // this.modelValidator.validateNodeIsALeaf([this.modelValidator.tree.root])
     // this.modelValidator.validateNodeIsNotALeaf([])
 
-    //validateQueryGoalProperties
+    //validate QueryGoal Node
     //Pass
-    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select(r:Room | !r.is_clean && r.abc)'
+    this.modelValidator.currentNodeRef.node = queryNode
+    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select( r : Room | !r.is_clean && r.abc)'
     this.modelValidator.validateQueryGoalProperties(queryNode.goalData.customProperties)
     this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
 
+    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select( r : Room | !r.is_clean && r.abc)'
+    this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
+    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select(r:Room | !r.is_clean)'
+    this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
+    queryNode.goalData.customProperties.QueriedProperty = 'world_db->select(r:Room | !r.is_clean <> "teste")'
+    this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
 
+
+    //validate AchieveGoal Node
+    //Pass
+    this.modelValidator.currentNodeRef.node = achieveNode
+    achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean && current_room.abc)'
+    this.modelValidator.validateAchieveGoalProperties(achieveNode.goalData.customProperties)
+    this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+
+    achieveNode.goalData.customProperties.AchieveCondition = 'current_room.is_clean >= 1'
+    this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+    achieveNode.goalData.customProperties.AchieveCondition = 'current_room.is_clean'
+    this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+    this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
+
+    // Error
+    // achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean %% r.is_clean)'
+    // achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean <= a)'
+    // achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean + a)'
+    this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+
+
+
+    // Error
+    // achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean && current_room.abc)'
+    // this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, {})
+
+    // Error
+    // achieveNode.goalData.customProperties.Monitors = 'rooms , rooms2 : SAequence(Room)'
+    // achieveNode.goalData.customProperties.Monitors = 'ro%$ms , rooms2 : Sequence(Room)'
+    // this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
+
+
+
+
+
+
+
+
+    // ==================================================
     console.log(`Total de errors: ${ErrorLogger.errorCount}`)
   }
 }

@@ -11,10 +11,10 @@ const notRegex = '\\!?'
 
 const queryGoalConditionOr =
   `${notRegex}${variableIdentifierRegex} ((=|<>) ("[a-zA-Z]+"|[0-9.]+)|(>|<)=? [0-9.]+|(in|&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
-const queryGoalConditionRegex = `(${notRegex}${variableIdentifierRegex}|${queryGoalConditionOr}|)`
+const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`
 
-const achieveGoalConditionOr = `(${notRegex}${variableIdentifierRegex} (=|<>|(>|<)=?) ([0-9.]+)|(&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
-const achieveGoalConditionRegex = `(${notRegex}${variableIdentifierRegex}|${achieveGoalConditionOr}|)`
+const achieveGoalConditionOr = `${notRegex}${variableIdentifierRegex} ((=|<>|(>|<)=?) ([0-9.]+)|(&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
+const achieveGoalConditionRegex = `(${achieveGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`
 
 export class ModelRulesValidator {
   tree: GoalTree
@@ -43,7 +43,7 @@ export class ModelRulesValidator {
   validateGoalTextProperty(nodeText: string) {
     const goalTextPropertyRegex = /^G[0-9]+:\s*(\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
 
-    if (!this.checkMatch(nodeText, goalTextPropertyRegex)) {
+    if (!this.checkExactMatch(nodeText, goalTextPropertyRegex)) {
       ErrorLogger.log('Bad Goal Name Construction')
       // TODO - Erros via match vão ter q ser feitos novos regex
       // caso necessário refinamento do erro
@@ -53,7 +53,7 @@ export class ModelRulesValidator {
   validateTaskTextProperty(taskText: string) {
     const taskTextPropertyRegex = /^AT[0-9]+: (\w+\s*)+$/g
 
-    if (!this.checkMatch(taskText, taskTextPropertyRegex)) {
+    if (!this.checkExactMatch(taskText, taskTextPropertyRegex)) {
       ErrorLogger.log('Bad Task Name Construction')
     }
   }
@@ -91,27 +91,56 @@ export class ModelRulesValidator {
 
   validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
     const queriedPropertyValue = properties.QueriedProperty
-    const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(${variableIdentifierRegex}:${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
+    const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
 
     if (queriedPropertyValue) {
-      const match = queriedPropertyValue.match(new RegExp(queriedPropertyRegex))
-      console.log(match)
-      if (!this.checkMatch(queriedPropertyValue, queriedPropertyRegex)) {
-        ErrorLogger.log('Bad QueriedProperty Construction')
-        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
+      if (!this.checkExactMatch(queriedPropertyValue, queriedPropertyRegex)) {
+        let errorMsg = `Bad QueriedProperty Construction:\n`
+        // TODO - console.log(queriedPropertyValue.match(new RegExp(`^${variableIdentifierRegex}(?=->)`)))
+
+        if (!this.checkLoseMatch(queriedPropertyValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
+
+          errorMsg += ` Queried variable has a invalid identifier\n`
+        }
+        if (!this.checkLoseMatch(queriedPropertyValue, `->select`)) {
+          errorMsg += ` QueriedProperty value is missing the "->select" OCL statement\n`
+        }
+
+        if (!this.checkLoseMatch(queriedPropertyValue, `\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex}`)) {
+          errorMsg += ` Query variable: Identifier or Type error\n`
+        }
+
+        if (!this.checkLoseMatch(queriedPropertyValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
+          errorMsg += ` Error on condition construction\n`
+        }
+
+        ErrorLogger.log(errorMsg)
       }
 
       const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
       if (matchGroupList) {
-        let [_, queriedVariable, queryVariable, queryVariableInCondition] = matchGroupList
-        queryVariableInCondition = queryVariableInCondition.split('.')[0]
-        if (queryVariable != queryVariableInCondition) {
-          ErrorLogger.log(`Query variable: ${queryVariable} not equal to the variable:${queryVariableInCondition} in the condition`)
+
+        let [_, queriedVariable, queryVariable, variablesInConditionString] = matchGroupList
+
+        variablesInConditionString = variablesInConditionString.replace(/"[a-zA-Z]+"/, ' ')
+        const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
+        if (variablesInCondition) {
+          variablesInCondition.forEach(variable => {
+            if (!variable?.includes(queryVariable)) {
+              ErrorLogger.log(`Query variable: "${queryVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+            }
+          })
         }
 
-        // TODO - ver depois questão do sequence anotado
-        if (queriedVariable !== WORLD_DB && variablesList[queriedVariable] == undefined) {
-          ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
+        if (queriedVariable !== WORLD_DB) {
+          const variableType = variablesList[queriedVariable]
+          if (variableType == undefined) {
+            ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
+          } else {
+            if (!queriedVariable.includes('.') && !isVariableTypeSequence(variableType)) {
+              ErrorLogger.log('Query variable type is not a Sequence')
+            }
+          }
         }
 
         const controlsValue = properties.Controls
@@ -133,35 +162,62 @@ export class ModelRulesValidator {
 
   validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
     const achieveConditionValue = properties.AchieveCondition
-    const achieveConditionUniversalRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(${variableIdentifierRegex}(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
-    const achieveConditionRegex = new RegExp('')
+    const achieveConditionUniversalRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
+    const achieveConditionRegex = new RegExp(`${achieveGoalConditionRegex}`)
 
     if (achieveConditionValue) {
       const testAchieveConditionRegex = (achieveConditionValue.includes('->forAll') ? achieveConditionUniversalRegex : achieveConditionRegex)
-      // TODO - achieveCondition expressão normal é somente o Fi
-      if (!this.checkMatch(achieveConditionValue, testAchieveConditionRegex)) {
-        ErrorLogger.log('Bad AchieveCondition Construction')
-        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
+
+      if (!this.checkExactMatch(achieveConditionValue, testAchieveConditionRegex)) {
+        let errorMsg = `Bad AchieveCondition Construction:\n`
+        if (achieveConditionValue.includes('->forAll')) {
+          if (!this.checkLoseMatch(achieveConditionValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
+
+            errorMsg += ` Iterated variable has a invalid identifier\n`
+          }
+          if (!this.checkLoseMatch(achieveConditionValue, `->forAll`)) {
+            errorMsg += ` AchieveCondition value is missing the "->forAll" OCL statement\n`
+          }
+
+          if (!this.checkLoseMatch(achieveConditionValue, `\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})?`)) {
+            errorMsg += ` Iteration variable: Identifier or Type error\n`
+          }
+
+          if (!this.checkLoseMatch(achieveConditionValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
+            errorMsg += ` Error on condition construction\n`
+          }
+        } else {
+          if (!this.checkLoseMatch(achieveConditionValue, `${achieveGoalConditionRegex}`)) {
+            errorMsg += ` Error on condition construction\n`
+          }
+        }
+
+        console.log(achieveConditionValue.match(new RegExp(`${achieveGoalConditionRegex}`)))
+
+        ErrorLogger.log(errorMsg)
       }
 
       if (!achieveConditionValue.includes('->forAll')) return
 
       const matchGroupList = new RegExp(testAchieveConditionRegex).exec(achieveConditionValue)
       if (matchGroupList) {
-        let [_, iteratedVariable, iterationVariable, iterationVariableInCondition] = matchGroupList
+        let [_, iteratedVariable, iterationVariable, variablesInConditionString] = matchGroupList
 
-        iterationVariableInCondition = iterationVariableInCondition.split('.')[0]
-        if (iterationVariable != iterationVariableInCondition) {
-          ErrorLogger.log(`Iteration variable: ${iterationVariable} not equal to the variable:${iterationVariableInCondition} in the condition`)
+        const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
+        if (variablesInCondition) {
+          variablesInCondition.forEach(variable => {
+            if (!variable?.includes(iterationVariable)) {
+              ErrorLogger.log(`Iteration variable: "${iterationVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+            }
+          })
         }
 
         if (variablesList[iteratedVariable] == undefined) {
           ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
         }
 
-        // TODO - Sequence 
         const variableType = variablesList[iteratedVariable]
-        if (variableType && !isVariableTypeSequence(variableType)) {
+        if (!iteratedVariable.includes('.') && variableType && !isVariableTypeSequence(variableType)) {
           ErrorLogger.log('Iterated variable type is not a Sequence')
         }
 
@@ -217,12 +273,31 @@ export class ModelRulesValidator {
     if (monitorsValue) {
       const optionalTypeRegex = `( : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))?`
       const monitorsPropertyRegex = new RegExp(`^(${variableIdentifierRegex}${optionalTypeRegex})( , (${variableIdentifierRegex}${optionalTypeRegex}))*$`, 'g')
-      if (!this.checkMatch(monitorsValue, monitorsPropertyRegex)) {
-        ErrorLogger.log('Bad Monitors Construction')
-        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
+
+      const monitorsVariablesList = getMonitorsVariablesList(monitorsValue)
+
+      if (!this.checkExactMatch(monitorsValue, monitorsPropertyRegex)) {
+        let errorMsg = `Bad Monitors Property Construction:\n`
+        errorMsg += ` Variable(s) identifier or type, bad format\n`
+        const monitorVariablesMatch = monitorsValue.match(new RegExp(`${variableIdentifierRegex}${optionalTypeRegex}`, 'g'))
+        if (monitorVariablesMatch) {
+          monitorsVariablesList.forEach(variable => {
+            let badFormat = true;
+            monitorVariablesMatch.forEach(matchVariable => {
+              if (matchVariable.includes(variable.identifier)) {
+                badFormat = false
+                return
+              }
+            })
+            if (badFormat) {
+              errorMsg += ` Variable: ${variable.identifier} is bad formatted`
+            }
+          })
+        }
+        ErrorLogger.log(errorMsg)
       }
 
-      getMonitorsVariablesList(monitorsValue).forEach(variable => {
+      monitorsVariablesList.forEach(variable => {
         if (!variablesList[variable.identifier]) {
           ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors has not instantiated`)
         }
@@ -235,7 +310,7 @@ export class ModelRulesValidator {
     if (controlsValue) {
       // TODO - Questão de Sequence, validar futuramente
       const controlsPropertyRegex = new RegExp(`^(${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))( , (${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex})))*$`, 'g')
-      if (!this.checkMatch(controlsValue, controlsPropertyRegex)) {
+      if (!this.checkExactMatch(controlsValue, controlsPropertyRegex)) {
         ErrorLogger.log('Bad Controls Construction')
         // TODO - se erro, falar qual erro, ver groups e oq ta faltando
       }
@@ -258,13 +333,13 @@ export class ModelRulesValidator {
       let creationConditionRegex;
       if (creationConditionValue.includes('condition')) {
         creationConditionRegex = new RegExp(`assertion condition "(\\!|not )?${variableIdentifierRegex}"`, 'g')
-        if (!this.checkMatch(creationConditionValue, creationConditionRegex)) {
+        if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
           ErrorLogger.log('Bad CreationCondition Construction')
           // TODO - se erro, falar qual erro, ver groups e oq ta faltando
         }
       } else if (creationConditionValue.includes('trigger')) {
         creationConditionRegex = new RegExp(`assertion trigger "${eventListRegex}"`, 'g')
-        if (!this.checkMatch(creationConditionValue, creationConditionRegex)) {
+        if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
           ErrorLogger.log('Bad CreationCondition Construction')
           // TODO - se erro, falar qual erro, ver groups e oq ta faltando
         }
@@ -274,9 +349,19 @@ export class ModelRulesValidator {
 
     }
   }
-  private checkMatch(text: string, regex: RegExp) {
-    const match = text.match(new RegExp(regex))
+  private checkExactMatch(text: string, regex: RegExp | string, flag: string | undefined = undefined) {
+    const newRegex = (flag) ? new RegExp(regex, flag) : new RegExp(regex)
+    const match = text.match(newRegex)
     if (match != null && match[0] == text) {
+      return true
+    } else {
+      return false
+    }
+  }
+  private checkLoseMatch(text: string, regex: RegExp | string, flag: string | undefined = undefined) {
+    const newRegex = (flag) ? new RegExp(regex, flag) : new RegExp(regex)
+    const match = text.match(newRegex)
+    if (match != null) {
       return true
     } else {
       return false

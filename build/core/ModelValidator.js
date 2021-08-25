@@ -28,8 +28,8 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
     resetValidator() {
         this.goalIdChecker = this.idChecker(this.GOAL_ID);
         this.taskIdChecker = this.idChecker(this.TASK_ID);
-        this.errorList = [];
         this.currentNodeRef.node = { ...this.tree.root };
+        ErroLogger_1.ErrorLogger.errorCount = 0;
     }
     validateModel() {
         console.log(chalk_1.default.greenBright('Validating Goal Model'));

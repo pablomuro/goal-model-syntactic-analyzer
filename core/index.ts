@@ -6,34 +6,49 @@ import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
 import { ModelValidator } from './ModelValidator';
 
-const hddlPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'hddl', 'Room Cleaning.hddl')
-const goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
-const configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
+
+// TODO - Remover path na mão
+let hddlPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'hddl', 'Room Cleaning.hddl')
+let goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
+let configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
 
 main()
 async function main() {
-  const configFile: Config = JSON.parse(await (await readFile(configFilePath)).toString())
-  const goalModel = JSON.parse(await (await readFile(goalModelPath)).toString())
-  const hddl = await (await readFile(hddlPath)).toString()
 
-  const typesMap: Map<string, string> = extractOclToHddlTypesMap(configFile)
-  const tasksVarMap: Map<string, Map<string, string>> = extractTasksVarMap(configFile)
+  try {
+    const [_hddlPath, _goalModelPath, _configFilePath] = process.argv.slice(2)
 
-  const tree = goalTreeBuild(goalModel)
-  if (tree) {
-    const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl)
-    modelValidator.resetValidator()
-    // modelValidator.validateModel()
-    new ModelRulesValidatorTest(modelValidator).test()
+    if (_hddlPath && _goalModelPath && _configFilePath) {
+      hddlPath = _hddlPath
+      goalModelPath = _goalModelPath
+      configFilePath = _configFilePath
+    }
+
+    const configFile: Config = JSON.parse(await (await readFile(configFilePath)).toString())
+    const goalModel = JSON.parse(await (await readFile(goalModelPath)).toString())
+    const hddl = await (await readFile(hddlPath)).toString()
+
+    checkConfigFile(configFile)
+
+    const typesMap: Map<string, string> = extractOclToHddlTypesMap(configFile)
+    const tasksVarMap: Map<string, Map<string, string>> = extractTasksVarMap(configFile)
+
+    const tree = goalTreeBuild(goalModel)
+    if (tree) {
+      const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl)
+      modelValidator.resetValidator()
+      // modelValidator.validateModel()
+      new ModelRulesValidatorTest(modelValidator).test()
+    }
+  } catch (error) {
+    console.error(error)
   }
-
 }
 
-function parseConfigFile(configFile: any) {
-  // TODO - se não existir da erro
-  if (!configFile.type_mapping) return;
-  console.log(configFile.var_mapping)
-  console.log(configFile.type_mapping)
+function checkConfigFile(configFile: Config) {
+  if (!configFile.type_mapping || !configFile.var_mapping) {
+    throw Error('Error: type_mapping or var_mapping missing in the config file')
+  };
 }
 
 function extractOclToHddlTypesMap(configFile: Config): Map<string, string> {
