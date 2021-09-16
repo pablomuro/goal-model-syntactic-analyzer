@@ -9,10 +9,12 @@
     "build": "rm -rf ./build && tsc --build",
     "build:run": "rm -rf ./build && tsc --build && node ./build/core/index.js",
     "pkg": "npm run build && pkg package.json",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "jison": "nodemon --watch './**/*.ts' --exec 'clear;ts-node' test_jison.ts"
   },
   "dependencies": {
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "jison-gho": "^0.6.1-216"
   },
   "devDependencies": {
     "@types/node": "^16.6.1",
