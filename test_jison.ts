@@ -11,34 +11,45 @@ const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableI
 
 
 var grammar = {
-  "lex": {
-    "rules": [
-      [`[A-Z][a-zA-Z_0-9]*`, "return 'VARIABLE_TYPE';"],
+  lex: {
+    rules: [
+      [`${variableTypeRegex}`, "return 'VARIABLE_TYPE';"],
       [`${variableIdentifierRegex}`, "return 'VARIABLE';"],
       [`->select`, "return 'SELECT';"],
-      [`:`, "return ':';"],
-      [`${whiteSpace}\\|${whiteSpace}`, "return '|';"],
-      [`\\(`, "return '(';"],
+      [`${whiteSpace}:${whiteSpace}`, "return ':';"],
       [`${notRegex}`, "return 'NOT';"],
-      [`${whiteSpace}(=|<>) ("[a-zA-Z]+"|[0-9.]+)|(>|<)=? [0-9.]+|(in|&&|\\|\\|)${whiteSpace}`, "return 'OCL_OPERATION';"],
-      [`\\)`, "return ')';"],
+      [`[0-9.]+`, "return 'NUMBER';"],
+      [`"[a-zA-Z]+"`, "return 'STRING';"],
+      [`${whiteSpace}(=|<>)${whiteSpace}`, "return 'OCL_OPERATION_1';"],
+      [`${whiteSpace}((>|<)=?)${whiteSpace}`, "return 'OCL_OPERATION_2';"],
+      [`${whiteSpace}(in|&&|\\|\\|)${whiteSpace}`, "return 'OCL_OPERATION_3';"],
+      [`\\(${whiteSpace}`, "return '(';"],
+      [`${whiteSpace}\\)`, "return ')';"],
+      [`${whiteSpace}\\|`, "return '|';"],
+      [`\\s`, "return 'WHITE_SPACE';"],
       [`$`, "return 'EOI'"],
-      ["\\.*", "return 'INVALID';"]
+      [`\.*`, "return 'INVALID'"],
     ]
   },
 
-  "bnf": {
-    "expression": [
-      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI", "$$  =true"],
-      ['INVALID', "console.log(yytext)"],
+  bnf: {
+    QueriedPropertyInit: [
+      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI", "$$ = true"],
     ],
-    "ocl": [
-      ["NOT VARIABLE OCL_OPERATION", ""],
-      ["VARIABLE OCL_OPERATION", ""],
-      ["NOT VARIABLE", ""],
+    ocl: [
+      ["WHITE_SPACE ocl", ""],
+      ["VARIABLE ocl_operation", ""],
+      ["NOT VARIABLE ocl_operation", ""],
       ["VARIABLE", ""],
-      ['INVALID', "console.log(yytext)"],
-    ]
+      ["NOT VARIABLE", ""],
+      ["", ''],
+    ],
+    ocl_operation: [
+      ["OCL_OPERATION_1 STRING", ""],
+      ["OCL_OPERATION_1 NUMBER", ""],
+      ["OCL_OPERATION_2 NUMBER", ""],
+      ["OCL_OPERATION_3 VARIABLE", ""],
+    ],
   }
 };
 
@@ -55,23 +66,71 @@ parser.yy.parseError = function (msg: any, hash: any) {
     matched: hash.yy.lexer.matched
   }
 
-  const printRange = lexerObj.prettyPrintRange(lexerObj.yylloc)
+  const printRange = lexerObj.prettyPrintRange({ ...lexerObj.yylloc })
 
+  // console.log(hash)
 
+  // console.log(token)
+  // console.log(expected)
+
+  console.log("\n")
   console.log(printRange)
-  console.log(token, expected)
+  if (expected && token)
+    console.log(`Expected : ${expected.pop()} got ${token}\n`)
 }
-
 
 try {
   let result = ''
-  result = parser.parse("world_db->select(r: Room | r.is_clean)");
+  const corretos = [
+    `world_db->select(  r : Room | r.is_clean)`,
+    `world_db->select(r:Room | r.is_clean)`,
+    `world_db->select(r:Room | !r.is_clean)`,
+    `world_db->select(r:Room | r.is_clean = "asb" )`,
+    `world_db->select(r:Room | r.is_clean <> "asb" )`,
+    `world_db->select(r:Room | r.is_clean = 123 )`,
+    `world_db->select(r:Room | r.is_clean <> 123 )`,
+    `world_db->select(r:Room | r.is_clean > 123 )`,
+    `world_db->select(r:Room | r.is_clean >= 123 )`,
+    `world_db->select(r:Room | r.is_clean < 123 )`,
+    `world_db->select(r:Room | r.is_clean <= 123 )`,
+    `world_db->select(r:Room | r.is_clean in c.teste )`,
+    `world_db->select(r:Room | r.is_clean && c.teste )`,
+    `world_db->select(r:Room | r.is_clean || c.teste )`,
+    `world_db->select(r:Room | )`,
+  ]
+
+  for (let teste of corretos) {
+    parser.parse(teste)
+  }
+
+  const errados = [
+    `world_db->seleAct(r:Room | r.is_clean)`,
+    `World_db->select(r:Room | !r.is_clean)`,
+    `world_db->select(r:Room | r.is_clean =  )`,
+    `world_db->select(r:Room | r.is_clean <>  )`,
+    `world_db->select(r:Room | r.is_clean =  )`,
+    `world_db->select(r:Room | r.is_clean <>  )`,
+    `world_db->select(r:Room | r.is_clean >  )`,
+    `world_db->select(r:Room | r.is_clean >=  )`,
+    `world_db->select(r:Room | r.is_clean <  )`,
+    `world_db->select(r:Room | r.is_clean <=  )`,
+    `world_db->select(r:Room | r.is_clean in  )`,
+    `world_db->select(r:Room | r.is_clean &&  )`,
+    `world_db->select(r:Room | r.is_clean ||  )`,
+    `world_db->select(r:Room | r.is_clean )`,
+  ]
+
+  for (let teste of errados) {
+    parser.parse(teste)
+  }
+
   console.log(result)
 
 } catch (error: Error | any) {
   if (error.hash?.parser?.sourceCode?.src) {
     error.hash.parser.sourceCode.src = null
   }
-  // console.log(error.hash)
-  console.log(error.hash.errStr)
+  console.log("ERROOOOR")
+  console.log(error.hash)
+  console.log(error.hash?.errStr)
 }
