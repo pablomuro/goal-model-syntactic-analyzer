@@ -1,5 +1,4 @@
 import { JisonParser } from './JisonParser';
-import { QueriedPropertyGrammar } from './Grammars';
 import { ErrorLogger } from './ErroLogger';
 import { GOAL_TYPE_QUERY, GOAL_TYPE_PERFORM, GOAL_TYPE_ACHIEVE, QUERIED_PROPERTY, CONTROLS, ACHIEVED_CONDITION, MONITORS, CREATION_CONDITION, WORLD_DB, TASK_TYPE } from './utils/constants';
 import { getControlsVariablesList, ObjectType, isVariableTypeSequence, getMonitorsVariablesList, getTaskName, getTaskId } from './utils/utils';
@@ -93,73 +92,66 @@ export class ModelRulesValidator {
 
   validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
     const queriedPropertyValue = properties.QueriedProperty
+    const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
 
-    if (!queriedPropertyValue) return
+    if (queriedPropertyValue) {
+      if (!this.checkExactMatch(queriedPropertyValue, queriedPropertyRegex)) {
+        let errorMsg = `Bad QueriedProperty Construction:\n`
+        // TODO - console.log(queriedPropertyValue.match(new RegExp(`^${variableIdentifierRegex}(?=->)`)))
 
-    const jisonParser = new JisonParser(QueriedPropertyGrammar)
-    const obj = jisonParser.parse(queriedPropertyValue)
-    console.log(obj)
-    // const queriedPropertyValue = properties.QueriedProperty
-    // const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
+        if (!this.checkLoseMatch(queriedPropertyValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
 
-    // if (queriedPropertyValue) {
-    //   if (!this.checkExactMatch(queriedPropertyValue, queriedPropertyRegex)) {
-    //     let errorMsg = `Bad QueriedProperty Construction:\n`
-    //     // TODO - console.log(queriedPropertyValue.match(new RegExp(`^${variableIdentifierRegex}(?=->)`)))
+          errorMsg += ` Queried variable has a invalid identifier\n`
+        }
+        if (!this.checkLoseMatch(queriedPropertyValue, `->select`)) {
+          errorMsg += ` QueriedProperty value is missing the "->select" OCL statement\n`
+        }
 
-    //     if (!this.checkLoseMatch(queriedPropertyValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
+        if (!this.checkLoseMatch(queriedPropertyValue, `\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex}`)) {
+          errorMsg += ` Query variable: Identifier or Type error\n`
+        }
 
-    //       errorMsg += ` Queried variable has a invalid identifier\n`
-    //     }
-    //     if (!this.checkLoseMatch(queriedPropertyValue, `->select`)) {
-    //       errorMsg += ` QueriedProperty value is missing the "->select" OCL statement\n`
-    //     }
+        if (!this.checkLoseMatch(queriedPropertyValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
+          errorMsg += ` Error on condition construction\n`
+        }
 
-    //     if (!this.checkLoseMatch(queriedPropertyValue, `\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex}`)) {
-    //       errorMsg += ` Query variable: Identifier or Type error\n`
-    //     }
+        ErrorLogger.log(errorMsg)
+      }
 
-    //     if (!this.checkLoseMatch(queriedPropertyValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
-    //       errorMsg += ` Error on condition construction\n`
-    //     }
+      const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
+      if (matchGroupList) {
 
-    //     ErrorLogger.log(errorMsg)
-    //   }
+        let [_, queriedVariable, queryVariable, variablesInConditionString] = matchGroupList
 
-    //   const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
-    //   if (matchGroupList) {
+        variablesInConditionString = variablesInConditionString.replace(/"[a-zA-Z]+"/, ' ')
+        const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
+        if (variablesInCondition) {
+          variablesInCondition.forEach(variable => {
+            if (!variable?.includes(queryVariable)) {
+              ErrorLogger.log(`Query variable: "${queryVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+            }
+          })
+        }
 
-    //     let [_, queriedVariable, queryVariable, variablesInConditionString] = matchGroupList
+        if (queriedVariable !== WORLD_DB) {
+          const variableType = variablesList[queriedVariable]
+          if (variableType == undefined) {
+            ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
+          } else {
+            if (!queriedVariable.includes('.') && !isVariableTypeSequence(variableType)) {
+              ErrorLogger.log('Query variable type is not a Sequence')
+            }
+          }
+        }
 
-    //     variablesInConditionString = variablesInConditionString.replace(/"[a-zA-Z]+"/, ' ')
-    //     const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
-    //     if (variablesInCondition) {
-    //       variablesInCondition.forEach(variable => {
-    //         if (!variable?.includes(queryVariable)) {
-    //           ErrorLogger.log(`Query variable: "${queryVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
-    //         }
-    //       })
-    //     }
-
-    //     if (queriedVariable !== WORLD_DB) {
-    //       const variableType = variablesList[queriedVariable]
-    //       if (variableType == undefined) {
-    //         ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
-    //       } else {
-    //         if (!queriedVariable.includes('.') && !isVariableTypeSequence(variableType)) {
-    //           ErrorLogger.log('Query variable type is not a Sequence')
-    //         }
-    //       }
-    //     }
-
-    //     const controlsValue = properties.Controls
-    //     if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
-    //       ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
-    //     }
-    //   }
-    // } else {
-    //   ErrorLogger.log('No QueriedProperty value defined')
-    // }
+        const controlsValue = properties.Controls
+        if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
+          ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
+        }
+      }
+    } else {
+      ErrorLogger.log('No QueriedProperty value defined')
+    }
   }
 
   validateAchieveGoalProperties(_properties: NodeCustomProperties) {

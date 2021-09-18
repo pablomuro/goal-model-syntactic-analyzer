@@ -1,3 +1,4 @@
+import { Console } from 'console';
 import { GrammarInterface } from './definitions/jison.types';
 const JisonAPI = require("jison-gho")
 
@@ -27,8 +28,9 @@ export class JisonParser {
 
       console.log("\n")
       console.log(printRange)
-      if (expected && token)
-        console.log(`Expected : ${expected.shift()} got ${token}\n`)
+      if (expected && token) {
+        console.log(`Expected : ${expected.join(' or ')} got ${token}\n`)
+      }
     }
   }
 

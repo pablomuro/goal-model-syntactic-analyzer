@@ -17,14 +17,13 @@ export class ModelRulesValidatorTest {
     let correctInputList = []
     let wrongInputList = []
 
-    let isValidateWrong = false
 
     function validate(list: any[], callback: Function) {
       for (let input of list) {
         callback(input)
       }
     }
-    function validateWrong(list: any[], callback: Function) {
+    function validateWrong(isValidateWrong: boolean, list: any[], callback: Function) {
       if (!isValidateWrong) return
       validate(list, callback)
     }
@@ -59,9 +58,8 @@ export class ModelRulesValidatorTest {
       'G1: Clean All Dirty Rooms [FALLBACK(G1,G2,)]',
     ]
 
-    isValidateWrong = false
-    validateWrong(wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
-    isValidateWrong = false
+    validateWrong(false,
+      wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
 
     //GoalType
     //Pass
@@ -80,7 +78,8 @@ export class ModelRulesValidatorTest {
       'querye',
       'asda',
     ]
-    validateWrong(wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
+    validateWrong(false,
+      wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
 
     //validateNodeIsALeaf
     //Pass
@@ -139,12 +138,11 @@ export class ModelRulesValidatorTest {
       `world_db->select(r:Room | r.is_clean )`,
     ]
 
-    isValidateWrong = false
-    validateWrong(wrongInputList, (input: any) => {
-      queryNode.goalData.customProperties.QueriedProperty = input
-      this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
-    })
-    isValidateWrong = false
+    validateWrong(false,
+      wrongInputList, (input: any) => {
+        queryNode.goalData.customProperties.QueriedProperty = input
+        this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
+      })
 
     //validate AchieveGoal Node
     //Pass
@@ -158,8 +156,8 @@ export class ModelRulesValidatorTest {
     ]
     validate(correctInputList, (input: any) => {
       achieveNode.goalData.customProperties.Controls = "current_room : Room"
-      achieveNode.goalData.customProperties.Monitors = "rooms",
-        achieveNode.goalData.customProperties.AchieveCondition = input
+      achieveNode.goalData.customProperties.Monitors = "rooms";
+      achieveNode.goalData.customProperties.AchieveCondition = input
       this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' })
     })
 
@@ -170,27 +168,54 @@ export class ModelRulesValidatorTest {
       'wrong->forAll(current_room | current_room.is_clean + a)',
     ]
 
-    isValidateWrong = false
-    validateWrong(wrongInputList, (input: any) => {
-      achieveNode.goalData.customProperties.AchieveCondition = input
-      this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+    validateWrong(false,
+      wrongInputList, (input: any) => {
+        achieveNode.goalData.customProperties.AchieveCondition = input
+        this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+      })
+
+
+    // Validate Controls
+    //PASS
+    correctInputList = [
+      'rooms : Room, rooms2 : Sequence(Room)',
+      'rooms : Room',
+      'rooms2 : Sequence(Room)'
+    ]
+    validate(correctInputList, (input: any) => {
+      achieveNode.goalData.customProperties.Controls = input
+      this.modelValidator.validateControlsProperty(achieveNode.goalData.customProperties.Controls)
     })
-    isValidateWrong = false
-
 
     // Error
-    // achieveNode.goalData.customProperties.AchieveCondition = 'rooms->forAll(current_room | current_room.is_clean && current_room.abc)'
-    // this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, {})
+    wrongInputList = [
+      'rooms : asas, rooms2 : SAequence(Room)',
+      'ro%$ms , rooms2 : Sequence(Room)',
+      'rooms : Room, rooms2 : SAequence(Room)',
+    ]
 
-    // Error
-    // achieveNode.goalData.customProperties.Monitors = 'rooms , rooms2 : SAequence(Room)'
-    // achieveNode.goalData.customProperties.Monitors = 'ro%$ms , rooms2 : Sequence(Room)'
-    // this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
+    validateWrong(false,
+      wrongInputList, (input: any) => {
+        achieveNode.goalData.customProperties.Controls = input
+        this.modelValidator.validateControlsProperty(achieveNode.goalData.customProperties.Controls)
+      })
 
 
+    //Validate Monitors
+    //ERRO
+    wrongInputList = [
+      'rooms : asas, rooms2 : SAequence(Room)',
+      'ro%$ms , rooms2 : Sequence(Room)',
+      'rooms : Room, rooms2 : SAequence(Room)',
+    ]
+    validateWrong(false,
+      wrongInputList, (input: any) => {
+        achieveNode.goalData.customProperties.Monitors = input
+        this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
+      })
 
-
-
+    // TODO Validate CreationCondition
+    //Validate CreationCondition
 
 
 

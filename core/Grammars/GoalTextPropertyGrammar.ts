@@ -5,17 +5,17 @@ import { whiteSpace } from './GrammarConstants'
 export const GoalTextPropertyGrammar: GrammarInterface = {
   lex: {
     rules: [
-      [`^G[0-9]+`, "return 'GOAL_ID';"],
-      [`FALLBACK`, "return 'ANNOTATION_FALLBACK';"],
-      [`(\\w+\\s*)+`, "return 'GOAL_TEXT';"],
-      [`#|;`, "return 'ANNOTATION_OPERATION';"],
-      [`:${whiteSpace}`, "return ':';"],
-      [`\\[`, "return '[';"],
-      [`\\]`, "return ']';"],
-      [`\\(`, "return '(';"],
-      [`\\)`, "return ')';"],
-      [`\\s`, "return 'WHITE_SPACE';"],
-      [`,`, "return ',';"],
+      [`^G[0-9]+`, "return 'GOAL_ID'"],
+      [`FALLBACK`, "return 'ANNOTATION_FALLBACK'"],
+      [`(\\w+\\s*)+`, "return 'GOAL_TEXT'"],
+      [`#|;`, "return 'ANNOTATION_OPERATION'"],
+      [`:${whiteSpace}`, "return ':'"],
+      [`\\[`, "return '['"],
+      [`\\]`, "return ']'"],
+      [`\\(`, "return '('"],
+      [`\\)`, "return ')'"],
+      [`\\s`, "return 'WHITE_SPACE'"],
+      [`,`, "return ','"],
       [`$`, "return 'end-of-input'"],
       [`\.*`, "return 'INVALID'"],
     ]
