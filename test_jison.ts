@@ -9,7 +9,6 @@ const queryGoalConditionOr =
   `${notRegex}${variableIdentifierRegex}  ${notRegex}${variableIdentifierRegex})`
 const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`
 
-
 var grammar = {
   lex: {
     rules: [
@@ -34,26 +33,27 @@ var grammar = {
 
   bnf: {
     QueriedPropertyInit: [
-      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI", "$$ = true"],
+      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI", "$$ = [$1, $2, $3, $4, $5, $6, $7, ...$8, $9];"],
     ],
     ocl: [
-      ["WHITE_SPACE ocl", ""],
-      ["VARIABLE ocl_operation", ""],
-      ["NOT VARIABLE ocl_operation", ""],
-      ["VARIABLE", ""],
-      ["NOT VARIABLE", ""],
+      ["WHITE_SPACE ocl", "$$ = $2"],
+      ["VARIABLE ocl_operation", "$$ = [$1, ...$2]"],
+      ["NOT VARIABLE ocl_operation", "$$ = [$1, $2, ...$3]"],
+      ["VARIABLE", "$$ = [$1]"],
+      ["NOT VARIABLE", "$$ = [$1, $2]"],
       ["", ''],
     ],
     ocl_operation: [
-      ["OCL_OPERATION_1 STRING", ""],
-      ["OCL_OPERATION_1 NUMBER", ""],
-      ["OCL_OPERATION_2 NUMBER", ""],
-      ["OCL_OPERATION_3 VARIABLE", ""],
+      ["OCL_OPERATION_1 STRING", "$$ = [$1, $2]"],
+      ["OCL_OPERATION_1 NUMBER", "$$ = [$1, $2]"],
+      ["OCL_OPERATION_2 NUMBER", "$$ = [$1, $2]"],
+      ["OCL_OPERATION_3 VARIABLE", "$$ = [$1, $2]"],
     ],
   }
 };
 
 var parser = new JisonAPI.Parser(grammar);
+
 parser.yy.parseError = function (msg: any, hash: any) {
   if (hash?.parser?.sourceCode?.src) {
     hash.parser.sourceCode.src = null
@@ -76,31 +76,31 @@ parser.yy.parseError = function (msg: any, hash: any) {
   console.log("\n")
   console.log(printRange)
   if (expected && token)
-    console.log(`Expected : ${expected.pop()} got ${token}\n`)
+    console.log(`Expected : ${expected.shift()} got ${token}\n`)
 }
 
 try {
   let result = ''
   const corretos = [
-    `world_db->select(  r : Room | r.is_clean)`,
-    `world_db->select(r:Room | r.is_clean)`,
-    `world_db->select(r:Room | !r.is_clean)`,
-    `world_db->select(r:Room | r.is_clean = "asb" )`,
-    `world_db->select(r:Room | r.is_clean <> "asb" )`,
-    `world_db->select(r:Room | r.is_clean = 123 )`,
-    `world_db->select(r:Room | r.is_clean <> 123 )`,
-    `world_db->select(r:Room | r.is_clean > 123 )`,
+    // `world_db->select(  r : Room | r.is_clean)`,
+    // `world_db->select(r:Room | r.is_clean)`,
+    // `world_db->select(r:Room | !r.is_clean)`,
+    // `world_db->select(r:Room | r.is_clean = "asb" )`,
+    // `world_db->select(r:Room | r.is_clean <> "asb" )`,
+    // `world_db->select(r:Room | r.is_clean = 123 )`,
+    // `world_db->select(r:Room | r.is_clean <> 123 )`,
+    // `world_db->select(r:Room | r.is_clean > 123 )`,
     `world_db->select(r:Room | r.is_clean >= 123 )`,
-    `world_db->select(r:Room | r.is_clean < 123 )`,
-    `world_db->select(r:Room | r.is_clean <= 123 )`,
-    `world_db->select(r:Room | r.is_clean in c.teste )`,
-    `world_db->select(r:Room | r.is_clean && c.teste )`,
-    `world_db->select(r:Room | r.is_clean || c.teste )`,
-    `world_db->select(r:Room | )`,
+    // `world_db->select(r:Room | r.is_clean < 123 )`,
+    // `world_db->select(r:Room | r.is_clean <= 123 )`,
+    // `world_db->select(r:Room | r.is_clean in c.teste )`,
+    // `world_db->select(r:Room | r.is_clean && c.teste )`,
+    // `world_db->select(r:Room | r.is_clean || c.teste )`,
+    // `world_db->select(r:Room | )`,
   ]
 
   for (let teste of corretos) {
-    parser.parse(teste)
+    console.log(parser.parse(teste))
   }
 
   const errados = [
@@ -120,9 +120,9 @@ try {
     `world_db->select(r:Room | r.is_clean )`,
   ]
 
-  for (let teste of errados) {
-    parser.parse(teste)
-  }
+  // for (let teste of errados) {
+  //   parser.parse(teste)
+  // }
 
   console.log(result)
 
