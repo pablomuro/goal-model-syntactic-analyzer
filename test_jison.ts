@@ -5,9 +5,7 @@ const variableTypeRegex = '[A-Z][a-zA-Z_0-9]*'
 const notRegex = '\\!'
 const whiteSpace = '\\s*'
 
-const queryGoalConditionOr =
-  `${notRegex}${variableIdentifierRegex}  ${notRegex}${variableIdentifierRegex})`
-const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`
+
 
 var grammar = {
   lex: {
@@ -33,21 +31,27 @@ var grammar = {
 
   bnf: {
     QueriedPropertyInit: [
-      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI", "$$ = [$1, $2, $3, $4, $5, $6, $7, ...$8, $9];"],
+      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI",
+        `$$ = {
+          queriedVariable: $1,
+          queryVariable: {value: $4,type:$6},
+          conditionVariables: [...$8],
+        }`
+      ],
     ],
     ocl: [
       ["WHITE_SPACE ocl", "$$ = $2"],
       ["VARIABLE ocl_operation", "$$ = [$1, ...$2]"],
-      ["NOT VARIABLE ocl_operation", "$$ = [$1, $2, ...$3]"],
+      ["NOT VARIABLE ocl_operation", "$$ = [$2, ...$3]"],
       ["VARIABLE", "$$ = [$1]"],
-      ["NOT VARIABLE", "$$ = [$1, $2]"],
-      ["", ''],
+      ["NOT VARIABLE", "$$ = [$2]"],
+      ["", "$$ = []"],
     ],
     ocl_operation: [
-      ["OCL_OPERATION_1 STRING", "$$ = [$1, $2]"],
-      ["OCL_OPERATION_1 NUMBER", "$$ = [$1, $2]"],
-      ["OCL_OPERATION_2 NUMBER", "$$ = [$1, $2]"],
-      ["OCL_OPERATION_3 VARIABLE", "$$ = [$1, $2]"],
+      ["OCL_OPERATION_1 STRING", "$$ = []"],
+      ["OCL_OPERATION_1 NUMBER", "$$ = []"],
+      ["OCL_OPERATION_2 NUMBER", "$$ = []"],
+      ["OCL_OPERATION_3 VARIABLE", "$$ = [$2]"],
     ],
   }
 };
@@ -70,8 +74,8 @@ parser.yy.parseError = function (msg: any, hash: any) {
 
   // console.log(hash)
 
-  // console.log(token)
-  // console.log(expected)
+  console.log(token)
+  console.log(expected)
 
   console.log("\n")
   console.log(printRange)
@@ -90,13 +94,13 @@ try {
     // `world_db->select(r:Room | r.is_clean = 123 )`,
     // `world_db->select(r:Room | r.is_clean <> 123 )`,
     // `world_db->select(r:Room | r.is_clean > 123 )`,
-    `world_db->select(r:Room | r.is_clean >= 123 )`,
+    // `world_db->select(r:Room | r.is_clean >= 123 )`,
     // `world_db->select(r:Room | r.is_clean < 123 )`,
     // `world_db->select(r:Room | r.is_clean <= 123 )`,
     // `world_db->select(r:Room | r.is_clean in c.teste )`,
     // `world_db->select(r:Room | r.is_clean && c.teste )`,
     // `world_db->select(r:Room | r.is_clean || c.teste )`,
-    // `world_db->select(r:Room | )`,
+    `world_db->select(r:Room | )`,
   ]
 
   for (let teste of corretos) {

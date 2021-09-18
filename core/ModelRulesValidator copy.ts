@@ -18,9 +18,6 @@ const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableI
 const achieveGoalConditionOr = `${notRegex}${variableIdentifierRegex} ((=|<>|(>|<)=?) ([0-9.]+)|(&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`
 const achieveGoalConditionRegex = `(${achieveGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`
 
-
-const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
-
 export class ModelRulesValidator {
   tree: GoalTree
   typesMap: Map<string, string>
@@ -99,34 +96,70 @@ export class ModelRulesValidator {
 
     if (!queriedPropertyValue) return
 
-    const queriedPropertyObj = queriedPropertyJisonParser.parse(queriedPropertyValue)
-    if (!queriedPropertyObj) return
+    const jisonParser = new JisonParser(QueriedPropertyGrammar)
+    const obj = jisonParser.parse(queriedPropertyValue)
+    console.log(obj)
+    // const queriedPropertyValue = properties.QueriedProperty
+    // const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g')
 
-    let { queriedVariable, queryVariable, variablesInCondition } = queriedPropertyObj
+    // if (queriedPropertyValue) {
+    //   if (!this.checkExactMatch(queriedPropertyValue, queriedPropertyRegex)) {
+    //     let errorMsg = `Bad QueriedProperty Construction:\n`
+    //     // TODO - console.log(queriedPropertyValue.match(new RegExp(`^${variableIdentifierRegex}(?=->)`)))
 
-    if (variablesInCondition) {
-      variablesInCondition.forEach((variable: string) => {
-        if (!variable?.includes(queryVariable.value)) {
-          ErrorLogger.log(`Query variable: "${queryVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
-        }
-      })
-    }
+    //     if (!this.checkLoseMatch(queriedPropertyValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
 
-    if (queriedVariable !== WORLD_DB) {
-      const variableType = variablesList[queriedVariable]
-      if (variableType == undefined) {
-        ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
-      } else {
-        if (!queriedVariable.includes('.') && !isVariableTypeSequence(variableType)) {
-          ErrorLogger.log('Query variable type is not a Sequence')
-        }
-      }
-    }
+    //       errorMsg += ` Queried variable has a invalid identifier\n`
+    //     }
+    //     if (!this.checkLoseMatch(queriedPropertyValue, `->select`)) {
+    //       errorMsg += ` QueriedProperty value is missing the "->select" OCL statement\n`
+    //     }
 
-    const controlsValue = properties.Controls
-    if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
-      ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
-    }
+    //     if (!this.checkLoseMatch(queriedPropertyValue, `\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex}`)) {
+    //       errorMsg += ` Query variable: Identifier or Type error\n`
+    //     }
+
+    //     if (!this.checkLoseMatch(queriedPropertyValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
+    //       errorMsg += ` Error on condition construction\n`
+    //     }
+
+    //     ErrorLogger.log(errorMsg)
+    //   }
+
+    //   const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue)
+    //   if (matchGroupList) {
+
+    //     let [_, queriedVariable, queryVariable, variablesInConditionString] = matchGroupList
+
+    //     variablesInConditionString = variablesInConditionString.replace(/"[a-zA-Z]+"/, ' ')
+    //     const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
+    //     if (variablesInCondition) {
+    //       variablesInCondition.forEach(variable => {
+    //         if (!variable?.includes(queryVariable)) {
+    //           ErrorLogger.log(`Query variable: "${queryVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+    //         }
+    //       })
+    //     }
+
+    //     if (queriedVariable !== WORLD_DB) {
+    //       const variableType = variablesList[queriedVariable]
+    //       if (variableType == undefined) {
+    //         ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`)
+    //       } else {
+    //         if (!queriedVariable.includes('.') && !isVariableTypeSequence(variableType)) {
+    //           ErrorLogger.log('Query variable type is not a Sequence')
+    //         }
+    //       }
+    //     }
+
+    //     const controlsValue = properties.Controls
+    //     if (controlsValue && getControlsVariablesList(controlsValue).length == 0) {
+    //       ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value')
+    //     }
+    //   }
+    // } else {
+    //   ErrorLogger.log('No QueriedProperty value defined')
+    // }
   }
 
   validateAchieveGoalProperties(_properties: NodeCustomProperties) {
