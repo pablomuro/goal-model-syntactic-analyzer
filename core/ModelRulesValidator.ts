@@ -1,5 +1,7 @@
 import { JisonParser } from './JisonParser';
-import { QueriedPropertyGrammar } from './Grammars';
+import { QueriedPropertyGrammar } from './Grammars/QueriedPropertyGrammar';
+import { GoalTextPropertyGrammar } from './Grammars/GoalTextPropertyGrammar';
+import { AchieveConditionGrammar } from './Grammars/AchieveConditionGrammar'
 import { ErrorLogger } from './ErroLogger';
 import { GOAL_TYPE_QUERY, GOAL_TYPE_PERFORM, GOAL_TYPE_ACHIEVE, QUERIED_PROPERTY, CONTROLS, ACHIEVED_CONDITION, MONITORS, CREATION_CONDITION, WORLD_DB, TASK_TYPE } from './utils/constants';
 import { getControlsVariablesList, ObjectType, isVariableTypeSequence, getMonitorsVariablesList, getTaskName, getTaskId } from './utils/utils';
@@ -20,6 +22,8 @@ const achieveGoalConditionRegex = `(${achieveGoalConditionOr}|${notRegex}${varia
 
 
 const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
+const goalTextPropertyJisonParser = new JisonParser(GoalTextPropertyGrammar)
+const achieveConditionJisonParser = new JisonParser(AchieveConditionGrammar)
 
 export class ModelRulesValidator {
   tree: GoalTree
@@ -46,13 +50,8 @@ export class ModelRulesValidator {
   }
 
   validateGoalTextProperty(nodeText: string) {
-    const goalTextPropertyRegex = /^G[0-9]+:\s*(\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
-
-    if (!this.checkExactMatch(nodeText, goalTextPropertyRegex)) {
-      ErrorLogger.log('Bad Goal Name Construction')
-      // TODO - Erros via match vão ter q ser feitos novos regex
-      // caso necessário refinamento do erro
-    }
+    const goalTextPropertyObj = goalTextPropertyJisonParser.parse(nodeText)
+    if (!goalTextPropertyObj) return
   }
 
   validateTaskTextProperty(taskText: string) {
@@ -97,7 +96,10 @@ export class ModelRulesValidator {
   validateQueryGoalQueriedProperty(properties: NodeCustomProperties, variablesList: ObjectType) {
     const queriedPropertyValue = properties.QueriedProperty
 
-    if (!queriedPropertyValue) return
+    if (!queriedPropertyValue) {
+      ErrorLogger.log('No QueriedProperty value defined')
+      return
+    }
 
     const queriedPropertyObj = queriedPropertyJisonParser.parse(queriedPropertyValue)
     if (!queriedPropertyObj) return
@@ -138,78 +140,43 @@ export class ModelRulesValidator {
 
   validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
     const achieveConditionValue = properties.AchieveCondition
-    const achieveConditionUniversalRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g')
-    const achieveConditionRegex = new RegExp(`${achieveGoalConditionRegex}`)
 
-    if (achieveConditionValue) {
-      const testAchieveConditionRegex = (achieveConditionValue.includes('->forAll') ? achieveConditionUniversalRegex : achieveConditionRegex)
-
-      if (!this.checkExactMatch(achieveConditionValue, testAchieveConditionRegex)) {
-        let errorMsg = `Bad AchieveCondition Construction:\n`
-        if (achieveConditionValue.includes('->forAll')) {
-          if (!this.checkLoseMatch(achieveConditionValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
-
-            errorMsg += ` Iterated variable has a invalid identifier\n`
-          }
-          if (!this.checkLoseMatch(achieveConditionValue, `->forAll`)) {
-            errorMsg += ` AchieveCondition value is missing the "->forAll" OCL statement\n`
-          }
-
-          if (!this.checkLoseMatch(achieveConditionValue, `\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})?`)) {
-            errorMsg += ` Iteration variable: Identifier or Type error\n`
-          }
-
-          if (!this.checkLoseMatch(achieveConditionValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
-            errorMsg += ` Error on condition construction\n`
-          }
-        } else {
-          if (!this.checkLoseMatch(achieveConditionValue, `${achieveGoalConditionRegex}`)) {
-            errorMsg += ` Error on condition construction\n`
-          }
-        }
-
-        console.log(achieveConditionValue.match(new RegExp(`${achieveGoalConditionRegex}`)))
-
-        ErrorLogger.log(errorMsg)
-      }
-
-      if (!achieveConditionValue.includes('->forAll')) return
-
-      const matchGroupList = new RegExp(testAchieveConditionRegex).exec(achieveConditionValue)
-      if (matchGroupList) {
-        let [_, iteratedVariable, iterationVariable, variablesInConditionString] = matchGroupList
-
-        const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'))
-        if (variablesInCondition) {
-          variablesInCondition.forEach(variable => {
-            if (!variable?.includes(iterationVariable)) {
-              ErrorLogger.log(`Iteration variable: "${iterationVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
-            }
-          })
-        }
-
-        if (variablesList[iteratedVariable] == undefined) {
-          ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
-        }
-
-        const variableType = variablesList[iteratedVariable]
-        if (!iteratedVariable.includes('.') && variableType && !isVariableTypeSequence(variableType)) {
-          ErrorLogger.log('Iterated variable type is not a Sequence')
-        }
-
-        const monitorsValue = properties.Monitors
-        if (monitorsValue && !getMonitorsVariablesList(monitorsValue).find(variable => variable.identifier == iteratedVariable)) {
-          ErrorLogger.log(`Iterated variable: ${iteratedVariable} not present in monitored variables list`)
-        }
-
-        const controlsValue = properties.Controls
-        if (controlsValue && !getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable)) {
-          ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in control variables list`)
-        }
-      }
-    } else {
+    if (!achieveConditionValue) {
       // TODO - Essa condição ainda será validada, atualmente pode ser em Branco
       ErrorLogger.log('No AchieveCondition value defined')
+      return
+    }
+
+    const achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue)
+    if (!achieveConditionObj || achieveConditionObj.type == 'Normal') return
+
+    const { iteratedVariable, iterationVariable, variablesInCondition } = achieveConditionObj
+
+    if (variablesInCondition) {
+      variablesInCondition.forEach((variable: string) => {
+        if (!variable?.includes(iterationVariable.value)) {
+          ErrorLogger.log(`Iteration variable: "${iterationVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+        }
+      })
+    }
+
+    if (variablesList[iteratedVariable] == undefined) {
+      ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
+    }
+
+    const variableType = variablesList[iteratedVariable]
+    if (!iteratedVariable.includes('.') && variableType && !isVariableTypeSequence(variableType)) {
+      ErrorLogger.log('Iterated variable type is not a Sequence')
+    }
+
+    const monitorsValue = properties.Monitors
+    if (monitorsValue && !getMonitorsVariablesList(monitorsValue).find(variable => variable.identifier == iteratedVariable)) {
+      ErrorLogger.log(`Iterated variable: ${iteratedVariable} not present in monitored variables list`)
+    }
+
+    const controlsValue = properties.Controls
+    if (controlsValue && !getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable.value)) {
+      ErrorLogger.log(`Iteration variable: ${iterationVariable.value} not present in control variables list`)
     }
   }
 

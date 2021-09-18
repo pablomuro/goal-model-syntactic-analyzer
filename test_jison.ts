@@ -6,53 +6,48 @@ const notRegex = '\\!'
 const whiteSpace = '\\s*'
 
 
+const goalTextPropertyRegex = /^G[0-9]+:\s*(\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g
+
+'G4: Clean Current Room'
+
 
 var grammar = {
   lex: {
     rules: [
-      [`${variableTypeRegex}`, "return 'VARIABLE_TYPE';"],
-      [`${variableIdentifierRegex}`, "return 'VARIABLE';"],
-      [`->select`, "return 'SELECT';"],
-      [`${whiteSpace}:${whiteSpace}`, "return ':';"],
-      [`${notRegex}`, "return 'NOT';"],
-      [`[0-9.]+`, "return 'NUMBER';"],
-      [`"[a-zA-Z]+"`, "return 'STRING';"],
-      [`${whiteSpace}(=|<>)${whiteSpace}`, "return 'OCL_OPERATION_1';"],
-      [`${whiteSpace}((>|<)=?)${whiteSpace}`, "return 'OCL_OPERATION_2';"],
-      [`${whiteSpace}(in|&&|\\|\\|)${whiteSpace}`, "return 'OCL_OPERATION_3';"],
-      [`\\(${whiteSpace}`, "return '(';"],
-      [`${whiteSpace}\\)`, "return ')';"],
-      [`${whiteSpace}\\|`, "return '|';"],
+      [`^G[0-9]+`, "return 'GOAL_ID';"],
+      [`(\\w+\\s+)+`, "return 'GOAL_TEXT';"],
+      [`#|;`, "return 'ANNOTATION_OPERATION';"],
+      [`FALLBACK`, "return 'ANNOTATION_FALLBACK';"],
+      [`:${whiteSpace}`, "return ':';"],
+      [`\\[`, "return '[';"],
+      [`\\]`, "return ']';"],
+      [`\\(`, "return '(';"],
+      [`\\)`, "return ')';"],
       [`\\s`, "return 'WHITE_SPACE';"],
+      [`,`, "return ',';"],
       [`$`, "return 'EOI'"],
       [`\.*`, "return 'INVALID'"],
     ]
   },
 
   bnf: {
-    QueriedPropertyInit: [
-      ["VARIABLE SELECT ( VARIABLE : VARIABLE_TYPE | ocl ) EOI",
+    init: [
+      ["GOAL_ID : GOAL_TEXT [ goal_runtime_annotation ] EOI",
         `$$ = {
-          queriedVariable: $1,
-          queryVariable: {value: $4,type:$6},
-          conditionVariables: [...$8],
+          goalId: $1,
+          goalText: $3,
+          goalRuntimeAnnotation: [...$5],
         }`
       ],
     ],
-    ocl: [
-      ["WHITE_SPACE ocl", "$$ = $2"],
-      ["VARIABLE ocl_operation", "$$ = [$1, ...$2]"],
-      ["NOT VARIABLE ocl_operation", "$$ = [$2, ...$3]"],
-      ["VARIABLE", "$$ = [$1]"],
-      ["NOT VARIABLE", "$$ = [$2]"],
-      ["", "$$ = []"],
+    goal_runtime_annotation: [
+      ["GOAL_ID ANNOTATION_OPERATION GOAL_ID", "$$ = [$1, $2, $3]"],
+      ["ANNOTATION_FALLBACK ( fallback_goal_list )", "$$ = [$1, ...$3]"],
     ],
-    ocl_operation: [
-      ["OCL_OPERATION_1 STRING", "$$ = []"],
-      ["OCL_OPERATION_1 NUMBER", "$$ = []"],
-      ["OCL_OPERATION_2 NUMBER", "$$ = []"],
-      ["OCL_OPERATION_3 VARIABLE", "$$ = [$2]"],
-    ],
+    fallback_goal_list: [
+      ["GOAL_ID , fallback_goal_list", "$$ = [$1, $2, ...$3]"],
+      ["GOAL_ID", "$$ = [$1]"],
+    ]
   }
 };
 
@@ -100,7 +95,7 @@ try {
     // `world_db->select(r:Room | r.is_clean in c.teste )`,
     // `world_db->select(r:Room | r.is_clean && c.teste )`,
     // `world_db->select(r:Room | r.is_clean || c.teste )`,
-    `world_db->select(r:Room | )`,
+    'G1: Clean All Dirty Rooms [G2;G3]',
   ]
 
   for (let teste of corretos) {

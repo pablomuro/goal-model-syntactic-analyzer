@@ -58,8 +58,10 @@ export class ModelRulesValidatorTest {
       'G1: Clean All Dirty Rooms FALLBACK',
       'G1: Clean All Dirty Rooms [FALLBACK(G1,G2,)]',
     ]
-    validateWrong(wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
 
+    isValidateWrong = false
+    validateWrong(wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
+    isValidateWrong = false
 
     //GoalType
     //Pass
@@ -137,7 +139,7 @@ export class ModelRulesValidatorTest {
       `world_db->select(r:Room | r.is_clean )`,
     ]
 
-    isValidateWrong = true
+    isValidateWrong = false
     validateWrong(wrongInputList, (input: any) => {
       queryNode.goalData.customProperties.QueriedProperty = input
       this.modelValidator.validateQueryGoalQueriedProperty(queryNode.goalData.customProperties, {})
@@ -149,27 +151,31 @@ export class ModelRulesValidatorTest {
     this.modelValidator.currentNodeRef.node = achieveNode
     this.modelValidator.validateAchieveGoalProperties(achieveNode.goalData.customProperties)
 
-    // correctInputList = [
-    //   'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
-    //   'current_room.is_clean >= 1',
-    //   'current_room.is_clean'
-    // ]
-    // validate(correctInputList, (input: any) => {
-    //   achieveNode.goalData.customProperties.AchieveCondition = input
-    //   this.modelValidator.validateAchieveGoalAchieveCondition(queryNode.goalData.customProperties, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
-    // })
+    correctInputList = [
+      'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
+      'current_room.is_clean >= 1',
+      'current_room.is_clean'
+    ]
+    validate(correctInputList, (input: any) => {
+      achieveNode.goalData.customProperties.Controls = "current_room : Room"
+      achieveNode.goalData.customProperties.Monitors = "rooms",
+        achieveNode.goalData.customProperties.AchieveCondition = input
+      this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' })
+    })
 
     // Error
     wrongInputList = [
-      'rooms->forAll(current_room | current_room.is_clean %% r.is_clean)',
-      'rooms->forAll(current_room | current_room.is_clean <= a)',
-      'rooms->forAll(current_room | current_room.is_clean + a)',
+      'wrong->forAll(current_room | current_room.is_clean %% r.is_clean)',
+      'wrong->forAll(current_room | current_room.is_clean <= a)',
+      'wrong->forAll(current_room | current_room.is_clean + a)',
     ]
 
+    isValidateWrong = false
     validateWrong(wrongInputList, (input: any) => {
       achieveNode.goalData.customProperties.AchieveCondition = input
       this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
     })
+    isValidateWrong = false
 
 
     // Error
