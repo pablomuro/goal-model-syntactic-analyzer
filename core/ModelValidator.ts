@@ -62,8 +62,8 @@ export class ModelValidator extends ModelRulesValidator {
 
     console.log(chalk.greenBright('Validation finished'))
     const totalOfErros = ErrorLogger.errorCount
-    const consoleFormatter = (totalOfErros > 0) ? chalk.redBright : chalk.greenBright;
-    console.log(consoleFormatter(`Total de errors: ${totalOfErros}`))
+    const consoleFormatter = (totalOfErros > 0) ? chalk.redBright.bold : chalk.greenBright.bold;
+    console.log(consoleFormatter(`Total of Errors: ${totalOfErros}`))
     return visited;
   }
   private validateNode(node: Node, context: any, variablesList: ObjectType) {

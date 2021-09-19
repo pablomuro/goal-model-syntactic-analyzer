@@ -46,6 +46,8 @@ async function main() {
     }
   } catch (error) {
     console.error(error)
+    // TODO - SAir com código de erro
+    // process.exit(1)
   }
 }
 
