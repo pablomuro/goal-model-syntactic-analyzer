@@ -4,7 +4,7 @@
 # Room Cleaning Exampl - JSON
 
 npm run dev "./goal-model-examples/Room Cleaning Example/hddl/Room Cleaning.hddl"\
- "./goal-model-examples/Room Cleaning Example/gm/Room Cleaning.txt"\
+ "./goal-model-examples/Room Cleaning Example/gm/Room Cleaning.json"\
  "./goal-model-examples/Room Cleaning Example/configs/Room Cleaning Config.json"
 
 # Exemplo Object Pickin - XML

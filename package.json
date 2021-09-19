@@ -8,7 +8,7 @@
     "dev": "nodemon --watch './**/*.ts' --exec 'clear;ts-node' core/index.ts",
     "build": "rm -rf ./build && tsc --build",
     "build:run": "rm -rf ./build && tsc --build && node ./build/core/index.js",
-    "pkg": "npm run build && pkg package.json",
+    "pkg": "npm run build && rm -rf ./dist && pkg package.json",
     "test": "echo \"Error: no test specified\" && exit 1",
     "jison": "nodemon --watch './**/*.ts' --exec 'clear;ts-node' test_jison.ts"
   },

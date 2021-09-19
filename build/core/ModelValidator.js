@@ -10,8 +10,8 @@ const constants_1 = require("./utils/constants");
 const utils_1 = require("./utils/utils");
 const chalk_1 = __importDefault(require("chalk"));
 class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
-    constructor(tree, typesMap, tasksVarMap, hddl) {
-        super(tree, typesMap, tasksVarMap, hddl);
+    constructor(tree, typesMap, tasksVarMap, hddl, configFile) {
+        super(tree, typesMap, tasksVarMap, hddl, configFile);
         this.GOAL_ID = 'G';
         this.TASK_ID = 'AT';
         this.idChecker = (_ID) => {
@@ -45,7 +45,10 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
             node.children.forEach(_node => validate(_node, context, variablesList));
         };
         validate(current, context, variablesList);
-        console.log(chalk_1.default.greenBright('Validation finished'));
+        const totalOfErros = ErroLogger_1.ErrorLogger.errorCount;
+        const consoleFormatter = (totalOfErros > 0) ? chalk_1.default.redBright.bold : chalk_1.default.greenBright.bold;
+        console.log(consoleFormatter(`Total of Errors: ${totalOfErros}`));
+        console.log(chalk_1.default.greenBright('Validation finished\n'));
         return visited;
     }
     validateNode(node, context, variablesList) {
@@ -112,16 +115,14 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
         this.validateId(node.goalData.text, this.taskIdChecker());
         this.validateTaskTextProperty(node.goalData.text);
         this.validateTaskProperties(node.goalData.customProperties);
+        this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties);
+        const taskParanteProperties = node.parent?.goalData.customProperties;
+        if (taskParanteProperties)
+            this.validateTaskPropertiesVariablesWithParentMonitors(taskParanteProperties, node.goalData.customProperties, variablesList);
         this.validateTaskNameHddlMap(node.goalData.text, this.hddl);
-        // TODO - ver com Eric, parameters no HDDL e sem parameters no Model, só current_room
-        // typeMap -> Map(1) { 'Room' => 'room' }
-        //   'AT1' => Map(1) { 'current_room' => '?rm' },
-        // possível mapear "current_room: Room" para rm - room
-        // mas quem mapeia "?rt - robotteam" ??
-        this.validateTaskVariablesMapOnHddl(node.goalData.text, this.hddl, variablesList, this.typesMap, this.tasksVarMap);
-        // TODO - Validar se parent tem Monitor
-        // console.log(this.typesMap)
-        // console.log(this.tasksVarMap)
+        this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList);
+        // TODO - Non group tasks, which are children of non-group goals, must have 1 robot variable in its declaration or a
+        //RobotNumber attribute with 1 present in the range
     }
 }
 exports.ModelValidator = ModelValidator;

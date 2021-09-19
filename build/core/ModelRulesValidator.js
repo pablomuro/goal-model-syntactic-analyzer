@@ -2,40 +2,53 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ModelRulesValidator = void 0;
 const ErroLogger_1 = require("./ErroLogger");
+const AchieveConditionGrammar_1 = require("./Grammars/AchieveConditionGrammar");
+const CreationConditionGrammar_1 = require("./Grammars/CreationConditionGrammar");
+const GoalTextPropertyGrammar_1 = require("./Grammars/GoalTextPropertyGrammar");
+const TaskTextPropertyGrammar_1 = require("./Grammars/TaskTextPropertyGrammar");
+const MonitorsAndControlsGrammar_1 = require("./Grammars/MonitorsAndControlsGrammar");
+const QueriedPropertyGrammar_1 = require("./Grammars/QueriedPropertyGrammar");
+const TaskGrammar_1 = require("./Grammars/TaskGrammar");
+const JisonParser_1 = require("./JisonParser");
 const constants_1 = require("./utils/constants");
 const utils_1 = require("./utils/utils");
-const eventListRegex = '[a-zA-Z_0-9]*(\s*,\s*[a-zA-Z_0-9])*';
-const variableIdentifierRegex = '([a-zA-Z][a-zA-Z_.0-9]*)';
-const variableTypeRegex = '[A-Z][a-zA-Z_0-9]*';
-const notRegex = '\\!?';
-const queryGoalConditionOr = `${notRegex}${variableIdentifierRegex} ((=|<>) ("[a-zA-Z]+"|[0-9.]+)|(>|<)=? [0-9.]+|(in|&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`;
-const queryGoalConditionRegex = `(${queryGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`;
-const achieveGoalConditionOr = `${notRegex}${variableIdentifierRegex} ((=|<>|(>|<)=?) ([0-9.]+)|(&&|\\|\\|) ${notRegex}${variableIdentifierRegex})`;
-const achieveGoalConditionRegex = `(${achieveGoalConditionOr}|${notRegex}${variableIdentifierRegex}|)`;
+const queriedPropertyJisonParser = new JisonParser_1.JisonParser(QueriedPropertyGrammar_1.QueriedPropertyGrammar);
+const goalTextPropertyJisonParser = new JisonParser_1.JisonParser(GoalTextPropertyGrammar_1.GoalTextPropertyGrammar);
+const achieveConditionJisonParser = new JisonParser_1.JisonParser(AchieveConditionGrammar_1.AchieveConditionGrammar);
+const monitorsJisonParser = new JisonParser_1.JisonParser(MonitorsAndControlsGrammar_1.MonitorsGrammar);
+const controlsJisonParser = new JisonParser_1.JisonParser(MonitorsAndControlsGrammar_1.ControlsGrammar);
+const creationConditionJisonParser = new JisonParser_1.JisonParser(CreationConditionGrammar_1.CreationConditionGrammar);
+const taskTextPropertyJisonParser = new JisonParser_1.JisonParser(TaskTextPropertyGrammar_1.TaskTextPropertyGrammar);
+const taskLocationJisonParser = new JisonParser_1.JisonParser(TaskGrammar_1.LocationGrammar);
+const taskParamsJisonParser = new JisonParser_1.JisonParser(TaskGrammar_1.ParamsGrammar);
+const taskRobotNumberJisonParser = new JisonParser_1.JisonParser(TaskGrammar_1.RobotNumberGrammar);
 class ModelRulesValidator {
-    constructor(tree, typesMap, tasksVarMap, hddl) {
+    constructor(tree, typesMap, tasksVarMap, hddl, configFile) {
         this.tree = tree;
         this.tasksVarMap = tasksVarMap;
         this.typesMap = typesMap;
         this.hddl = hddl;
+        this.configFile = configFile;
         this.currentNodeRef = {
             node: { ...tree.root }
         };
         ErroLogger_1.ErrorLogger.currentNodeRef = this.currentNodeRef;
     }
     validateGoalTextProperty(nodeText) {
-        const goalTextPropertyRegex = /^G[0-9]+:\s*(\w*\s*(?!FALLBACK))*(([G[0-9]+(;|\#)G[0-9]+])|(\[FALLBACK\((G[0-9](,G[0-9])*)\)\])*$)/g;
-        if (!this.checkExactMatch(nodeText, goalTextPropertyRegex)) {
-            ErroLogger_1.ErrorLogger.log('Bad Goal Name Construction');
-            // TODO - Erros via match vão ter q ser feitos novos regex
-            // caso necessário refinamento do erro
+        if (!nodeText) {
+            ErroLogger_1.ErrorLogger.log('Goal Name is required');
+            return;
         }
+        const goalTextPropertyObj = goalTextPropertyJisonParser.parse(nodeText);
+        if (!goalTextPropertyObj)
+            return;
     }
     validateTaskTextProperty(taskText) {
-        const taskTextPropertyRegex = /^AT[0-9]+: (\w+\s*)+$/g;
-        if (!this.checkExactMatch(taskText, taskTextPropertyRegex)) {
-            ErroLogger_1.ErrorLogger.log('Bad Task Name Construction');
+        if (!taskText) {
+            ErroLogger_1.ErrorLogger.log('Task Name is required');
+            return;
         }
+        taskTextPropertyJisonParser.parse(taskText);
     }
     validateId(nodeText, validId) {
         if (!nodeText.includes(`${validId}:`)) {
@@ -65,56 +78,35 @@ class ModelRulesValidator {
     }
     validateQueryGoalQueriedProperty(properties, variablesList) {
         const queriedPropertyValue = properties.QueriedProperty;
-        const queriedPropertyRegex = new RegExp(`^${variableIdentifierRegex}->select\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex} \\|\\s*${queryGoalConditionRegex}\\)$`, 'g');
-        if (queriedPropertyValue) {
-            if (!this.checkExactMatch(queriedPropertyValue, queriedPropertyRegex)) {
-                let errorMsg = `Bad QueriedProperty Construction:\n`;
-                // TODO - console.log(queriedPropertyValue.match(new RegExp(`^${variableIdentifierRegex}(?=->)`)))
-                if (!this.checkLoseMatch(queriedPropertyValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
-                    errorMsg += ` Queried variable has a invalid identifier\n`;
+        if (!queriedPropertyValue) {
+            ErroLogger_1.ErrorLogger.log('No QueriedProperty value defined');
+            return;
+        }
+        const queriedPropertyObj = queriedPropertyJisonParser.parse(queriedPropertyValue);
+        if (!queriedPropertyObj)
+            return;
+        let { queriedVariable, queryVariable, variablesInCondition } = queriedPropertyObj;
+        if (variablesInCondition) {
+            variablesInCondition.forEach((variable) => {
+                if (!variable?.includes(queryVariable.value)) {
+                    ErroLogger_1.ErrorLogger.log(`Query variable: "${queryVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`);
                 }
-                if (!this.checkLoseMatch(queriedPropertyValue, `->select`)) {
-                    errorMsg += ` QueriedProperty value is missing the "->select" OCL statement\n`;
-                }
-                if (!this.checkLoseMatch(queriedPropertyValue, `\\(\\s*${variableIdentifierRegex}\\s*:\\s*${variableTypeRegex}`)) {
-                    errorMsg += ` Query variable: Identifier or Type error\n`;
-                }
-                if (!this.checkLoseMatch(queriedPropertyValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
-                    errorMsg += ` Error on condition construction\n`;
-                }
-                ErroLogger_1.ErrorLogger.log(errorMsg);
+            });
+        }
+        if (queriedVariable !== constants_1.WORLD_DB) {
+            const variableType = variablesList[queriedVariable];
+            if (variableType == undefined) {
+                ErroLogger_1.ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`);
             }
-            const matchGroupList = new RegExp(queriedPropertyRegex).exec(queriedPropertyValue);
-            if (matchGroupList) {
-                let [_, queriedVariable, queryVariable, variablesInConditionString] = matchGroupList;
-                variablesInConditionString = variablesInConditionString.replace(/"[a-zA-Z]+"/, ' ');
-                const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'));
-                if (variablesInCondition) {
-                    variablesInCondition.forEach(variable => {
-                        if (!variable?.includes(queryVariable)) {
-                            ErroLogger_1.ErrorLogger.log(`Query variable: "${queryVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`);
-                        }
-                    });
-                }
-                if (queriedVariable !== constants_1.WORLD_DB) {
-                    const variableType = variablesList[queriedVariable];
-                    if (variableType == undefined) {
-                        ErroLogger_1.ErrorLogger.log(`Undeclared variable: ${queriedVariable} used in QueriedProperty`);
-                    }
-                    else {
-                        if (!queriedVariable.includes('.') && !utils_1.isVariableTypeSequence(variableType)) {
-                            ErroLogger_1.ErrorLogger.log('Query variable type is not a Sequence');
-                        }
-                    }
-                }
-                const controlsValue = properties.Controls;
-                if (controlsValue && utils_1.getControlsVariablesList(controlsValue).length == 0) {
-                    ErroLogger_1.ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value');
+            else {
+                if (!queriedVariable.includes('.') && !utils_1.isVariableTypeSequence(variableType)) {
+                    ErroLogger_1.ErrorLogger.log('Query variable type is not a Sequence');
                 }
             }
         }
-        else {
-            ErroLogger_1.ErrorLogger.log('No QueriedProperty value defined');
+        const controlsValue = properties.Controls;
+        if (controlsValue && utils_1.getControlsVariablesList(controlsValue).length == 0) {
+            ErroLogger_1.ErrorLogger.log('Must be a variable in Controls to receive a QueriedProperty value');
         }
     }
     validateAchieveGoalProperties(_properties) {
@@ -124,67 +116,43 @@ class ModelRulesValidator {
     }
     validateAchieveGoalAchieveCondition(properties, variablesList) {
         const achieveConditionValue = properties.AchieveCondition;
-        const achieveConditionUniversalRegex = new RegExp(`^${variableIdentifierRegex}->forAll\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})? \\| ${achieveGoalConditionRegex}\\)$`, 'g');
-        const achieveConditionRegex = new RegExp(`${achieveGoalConditionRegex}`);
-        if (achieveConditionValue) {
-            const testAchieveConditionRegex = (achieveConditionValue.includes('->forAll') ? achieveConditionUniversalRegex : achieveConditionRegex);
-            if (!this.checkExactMatch(achieveConditionValue, testAchieveConditionRegex)) {
-                let errorMsg = `Bad AchieveCondition Construction:\n`;
-                if (achieveConditionValue.includes('->forAll')) {
-                    if (!this.checkLoseMatch(achieveConditionValue, `^${variableIdentifierRegex}(?=->)`, 'g')) {
-                        errorMsg += ` Iterated variable has a invalid identifier\n`;
-                    }
-                    if (!this.checkLoseMatch(achieveConditionValue, `->forAll`)) {
-                        errorMsg += ` AchieveCondition value is missing the "->forAll" OCL statement\n`;
-                    }
-                    if (!this.checkLoseMatch(achieveConditionValue, `\\(\\s*${variableIdentifierRegex}\\s*(?::${variableTypeRegex})?`)) {
-                        errorMsg += ` Iteration variable: Identifier or Type error\n`;
-                    }
-                    if (!this.checkLoseMatch(achieveConditionValue, `\\|\\s*${queryGoalConditionRegex}\\)$`)) {
-                        errorMsg += ` Error on condition construction\n`;
-                    }
-                }
-                else {
-                    if (!this.checkLoseMatch(achieveConditionValue, `${achieveGoalConditionRegex}`)) {
-                        errorMsg += ` Error on condition construction\n`;
-                    }
-                }
-                console.log(achieveConditionValue.match(new RegExp(`${achieveGoalConditionRegex}`)));
-                ErroLogger_1.ErrorLogger.log(errorMsg);
-            }
-            if (!achieveConditionValue.includes('->forAll'))
-                return;
-            const matchGroupList = new RegExp(testAchieveConditionRegex).exec(achieveConditionValue);
-            if (matchGroupList) {
-                let [_, iteratedVariable, iterationVariable, variablesInConditionString] = matchGroupList;
-                const variablesInCondition = variablesInConditionString.match(new RegExp(`${variableIdentifierRegex}`, 'g'));
-                if (variablesInCondition) {
-                    variablesInCondition.forEach(variable => {
-                        if (!variable?.includes(iterationVariable)) {
-                            ErroLogger_1.ErrorLogger.log(`Iteration variable: "${iterationVariable}" not equal to the variable: "${variable.split('.')[0]}" in the condition`);
-                        }
-                    });
-                }
-                if (variablesList[iteratedVariable] == undefined) {
-                    ErroLogger_1.ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`);
-                }
-                const variableType = variablesList[iteratedVariable];
-                if (!iteratedVariable.includes('.') && variableType && !utils_1.isVariableTypeSequence(variableType)) {
-                    ErroLogger_1.ErrorLogger.log('Iterated variable type is not a Sequence');
-                }
-                const monitorsValue = properties.Monitors;
-                if (monitorsValue && !utils_1.getMonitorsVariablesList(monitorsValue).find(variable => variable.identifier == iteratedVariable)) {
-                    ErroLogger_1.ErrorLogger.log(`Iterated variable: ${iteratedVariable} not present in monitored variables list`);
-                }
-                const controlsValue = properties.Controls;
-                if (controlsValue && !utils_1.getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable)) {
-                    ErroLogger_1.ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in control variables list`);
-                }
-            }
-        }
-        else {
+        if (!achieveConditionValue) {
             // TODO - Essa condição ainda será validada, atualmente pode ser em Branco
             ErroLogger_1.ErrorLogger.log('No AchieveCondition value defined');
+            return;
+        }
+        const achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue);
+        if (!achieveConditionObj)
+            return;
+        if (achieveConditionObj.type == 'Normal') {
+            checkControls(achieveConditionObj.variable.split('.')[0]);
+            return;
+        }
+        const { iteratedVariable, iterationVariable, variablesInCondition } = achieveConditionObj;
+        if (variablesInCondition) {
+            variablesInCondition.forEach((variable) => {
+                if (!variable?.includes(iterationVariable.value)) {
+                    ErroLogger_1.ErrorLogger.log(`Iteration variable: "${iterationVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`);
+                }
+            });
+        }
+        if (variablesList[iteratedVariable] == undefined) {
+            ErroLogger_1.ErrorLogger.log(`Iterated variable: ${iteratedVariable} was not previous instantiated`);
+        }
+        const variableType = variablesList[iteratedVariable];
+        if (!iteratedVariable.includes('.') && variableType && !utils_1.isVariableTypeSequence(variableType)) {
+            ErroLogger_1.ErrorLogger.log('Iterated variable type is not a Sequence');
+        }
+        const monitorsValue = properties.Monitors;
+        if (monitorsValue && !utils_1.getMonitorsVariablesList(monitorsValue).find(variable => variable.identifier == iteratedVariable)) {
+            ErroLogger_1.ErrorLogger.log(`Iterated variable: ${iteratedVariable} not present in monitored variables list`);
+        }
+        checkControls(iterationVariable.value);
+        function checkControls(iterationVariable) {
+            const controlsValue = properties.Controls;
+            if (controlsValue && !utils_1.getControlsVariablesList(controlsValue).find(variable => variable.identifier == iterationVariable)) {
+                ErroLogger_1.ErrorLogger.log(`Iteration variable: ${iterationVariable} not present in control variables list`);
+            }
         }
     }
     validateTaskProperties(_properties) {
@@ -201,115 +169,147 @@ class ModelRulesValidator {
             }
         }
     }
-    validateTaskVariablesMapOnHddl(taskText, hddl, variablesList, typesMap, tasksVarMap) {
-        // TODO - ver 
-        const _type = variablesList['current_room'];
-        const taskId = utils_1.getTaskId(taskText);
-        if (_type && taskId) {
-            const hddlVariableIdentifier = tasksVarMap.get(taskId)?.get('current_room');
-            const hddlType = typesMap.get(_type);
-            const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`;
-            // console.log(hddlVariable)
-            // ErrorLogger.log('Types diferentes no HDDL')
+    validateTaskVariablesMapOnHddl(properties, taskText, variablesList) {
+        const taskName = utils_1.getTaskName(taskText);
+        const taskVariables = utils_1.getTaskVariablesList(properties);
+        const hddlTaskRegex = `\\(:task ${taskName}\.*\\n`;
+        const match = this.hddl.match(new RegExp(hddlTaskRegex));
+        if (match != null && match[0]) {
+            const hddlParametersString = match[0].split(':parameters')[1].trim().toString();
+            taskVariables.forEach(variable => {
+                const type = variablesList[variable];
+                const taskId = utils_1.getTaskId(taskText);
+                if (type && taskId) {
+                    const hddlVariableIdentifier = this.tasksVarMap.get(taskId)?.get(variable);
+                    const hddlType = this.typesMap.get(type);
+                    const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`;
+                    if (!hddlParametersString.includes(hddlVariable)) {
+                        ErroLogger_1.ErrorLogger.log(`Task variable: ${variable}: ${type} not mapped as ${hddlVariable} in the HDDL file`);
+                    }
+                }
+            });
+            this.validateTaskRobotsOnHddl(properties, hddlParametersString);
+        }
+    }
+    validateTaskRobotsOnHddl(taskProperties, hddlParametersString) {
+        const hasRobotTeam = hddlParametersString.includes('robotteam');
+        const hasRobotsOnHddl = (hasRobotTeam || hddlParametersString.includes('robot'));
+        if (taskProperties.RobotNumber) {
+            const robotNumberObj = taskRobotNumberJisonParser.parse(taskProperties.RobotNumber);
+            if (robotNumberObj) {
+                if (robotNumberObj.type === 'RANGE' && !hasRobotTeam) {
+                    ErroLogger_1.ErrorLogger.log(`RobotNumber of Range type must me mapped to a robotteam variable in the HDDL definition`);
+                }
+                if (robotNumberObj.type === 'NUMBER' && !hasRobotTeam) {
+                    try {
+                        const hddlRobotCountMatch = hddlParametersString.match(/- (robot)/g);
+                        if (!hddlRobotCountMatch)
+                            throw new Error;
+                        const hddlRobotCount = hddlRobotCountMatch.length;
+                        if (parseInt(robotNumberObj.value) != hddlRobotCount) {
+                            throw new Error;
+                        }
+                    }
+                    catch (e) {
+                        ErroLogger_1.ErrorLogger.log(`RobotNumber with value: ${robotNumberObj.value} must map ${robotNumberObj.value} "robots" or a "robotteam" variable in the HDDL definition`);
+                    }
+                    const robotNumber = robotNumberObj.value;
+                }
+            }
+        }
+        else if (!taskProperties.RobotNumber && hasRobotsOnHddl) {
+            ErroLogger_1.ErrorLogger.log(`Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition`);
+        }
+    }
+    validateIfTaskParentHasMonitors(parentProperties) {
+        if (!parentProperties) {
+            ErroLogger_1.ErrorLogger.log('Task musta have a Parent');
+        }
+        else if (!('Monitors' in parentProperties)) {
+            ErroLogger_1.ErrorLogger.log('Task parent must have a Monitors property');
+        }
+    }
+    validateTaskPropertiesVariablesWithParentMonitors(parentProperties, taskProperties, instantiatedVariablesList) {
+        const variablesList = [];
+        if (taskProperties.Location) {
+            const locationVariable = taskLocationJisonParser.parse(taskProperties.Location);
+            if (locationVariable) {
+                variablesList.push(locationVariable);
+                const locationVariableType = instantiatedVariablesList[locationVariable];
+                if (!locationVariableType) {
+                    ErroLogger_1.ErrorLogger.log(`Location variable: ${locationVariable} does not have a Type`);
+                }
+                else if (!this.configFile.location_types.includes(locationVariableType)) {
+                    ErroLogger_1.ErrorLogger.log(`Location variable type: ${locationVariableType} is not declared in location_types on the config file`);
+                }
+            }
+        }
+        if (taskProperties.Params) {
+            const paramsVariables = taskParamsJisonParser.parse(taskProperties.Params);
+            if (paramsVariables)
+                variablesList.push(...paramsVariables);
+        }
+        if (taskProperties.RobotNumber) {
+            const robotNumberObj = taskRobotNumberJisonParser.parse(taskProperties.RobotNumber);
+            if (robotNumberObj && robotNumberObj.type === 'RANGE') {
+                const [minRobot, maxRobot] = robotNumberObj.value;
+                if ((minRobot && maxRobot) && (parseInt(minRobot) > parseInt(maxRobot))) {
+                    ErroLogger_1.ErrorLogger.log(`RobotNumber Range: minimum robot number is grater than the maximum number`);
+                }
+            }
+        }
+        if (variablesList && parentProperties.Monitors) {
+            const monitorsVariablesList = utils_1.getPlainMonitorsVariablesList(parentProperties.Monitors);
+            variablesList.forEach((variable) => {
+                if (!monitorsVariablesList.includes(variable)) {
+                    ErroLogger_1.ErrorLogger.log(`Task Variable: ${variable} not present in parent Monitors property`);
+                }
+                if (!instantiatedVariablesList[variable]) {
+                    ErroLogger_1.ErrorLogger.log(`Task Variable: ${variable} was not previous instantiated`);
+                }
+            });
         }
     }
     validateMonitorsProperty(monitorsValue, variablesList) {
-        if (monitorsValue) {
-            const optionalTypeRegex = `( : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))?`;
-            const monitorsPropertyRegex = new RegExp(`^(${variableIdentifierRegex}${optionalTypeRegex})( , (${variableIdentifierRegex}${optionalTypeRegex}))*$`, 'g');
-            const monitorsVariablesList = utils_1.getMonitorsVariablesList(monitorsValue);
-            if (!this.checkExactMatch(monitorsValue, monitorsPropertyRegex)) {
-                let errorMsg = `Bad Monitors Property Construction:\n`;
-                errorMsg += ` Variable(s) identifier or type, bad format\n`;
-                const monitorVariablesMatch = monitorsValue.match(new RegExp(`${variableIdentifierRegex}${optionalTypeRegex}`, 'g'));
-                if (monitorVariablesMatch) {
-                    monitorsVariablesList.forEach(variable => {
-                        let badFormat = true;
-                        monitorVariablesMatch.forEach(matchVariable => {
-                            if (matchVariable.includes(variable.identifier)) {
-                                badFormat = false;
-                                return;
-                            }
-                        });
-                        if (badFormat) {
-                            errorMsg += ` Variable: ${variable.identifier} is bad formatted`;
-                        }
-                    });
-                }
-                ErroLogger_1.ErrorLogger.log(errorMsg);
-            }
-            monitorsVariablesList.forEach(variable => {
-                if (!variablesList[variable.identifier]) {
-                    ErroLogger_1.ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors has not instantiated`);
-                }
-            });
-        }
-        else {
+        if (!monitorsValue) {
             ErroLogger_1.ErrorLogger.log('No Monitors value defined');
+            return;
         }
+        const monitorsObj = monitorsJisonParser.parse(monitorsValue);
+        if (!monitorsObj)
+            return;
+        const monitorsVariablesList = utils_1.getMonitorsVariablesList(monitorsValue);
+        monitorsVariablesList.forEach(variable => {
+            if (!variablesList[variable.identifier]) {
+                ErroLogger_1.ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors was not previous instantiated`);
+            }
+        });
     }
     validateControlsProperty(controlsValue) {
-        if (controlsValue) {
-            // TODO - Questão de Sequence, validar futuramente
-            const controlsPropertyRegex = new RegExp(`^(${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex}))( , (${variableIdentifierRegex} : (Sequence\\(${variableTypeRegex}\\)|${variableTypeRegex})))*$`, 'g');
-            if (!this.checkExactMatch(controlsValue, controlsPropertyRegex)) {
-                ErroLogger_1.ErrorLogger.log('Bad Controls Construction');
-                // TODO - se erro, falar qual erro, ver groups e oq ta faltando
-            }
-            utils_1.getControlsVariablesList(controlsValue).forEach(variable => {
-                const { identifier, type } = variable;
-                if (!(identifier)) {
-                    ErroLogger_1.ErrorLogger.log('Variable identifier in Controls property has an error');
-                }
-                if (!(type)) {
-                    ErroLogger_1.ErrorLogger.log('Variable type in Controls property is required');
-                }
-            });
-        }
-        else {
+        if (!controlsValue) {
             ErroLogger_1.ErrorLogger.log('No Controls value defined');
+            return;
         }
+        const controlsObj = controlsJisonParser.parse(controlsValue);
+        utils_1.getControlsVariablesList(controlsValue).forEach(variable => {
+            const { identifier, type } = variable;
+            if (!(identifier)) {
+                ErroLogger_1.ErrorLogger.log('Variable identifier in Controls property has an error');
+            }
+            if (!(type)) {
+                ErroLogger_1.ErrorLogger.log('Variable type in Controls property is required');
+            }
+        });
     }
     validateCreationConditionProperty(creationConditionValue) {
-        if (creationConditionValue) {
-            let creationConditionRegex;
-            if (creationConditionValue.includes('condition')) {
-                creationConditionRegex = new RegExp(`assertion condition "(\\!|not )?${variableIdentifierRegex}"`, 'g');
-                if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
-                    ErroLogger_1.ErrorLogger.log('Bad CreationCondition Construction');
-                    // TODO - se erro, falar qual erro, ver groups e oq ta faltando
-                }
-            }
-            else if (creationConditionValue.includes('trigger')) {
-                creationConditionRegex = new RegExp(`assertion trigger "${eventListRegex}"`, 'g');
-                if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
-                    ErroLogger_1.ErrorLogger.log('Bad CreationCondition Construction');
-                    // TODO - se erro, falar qual erro, ver groups e oq ta faltando
-                }
-            }
-            else {
-                ErroLogger_1.ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`);
-            }
+        if (!creationConditionValue) {
+            return;
         }
-    }
-    checkExactMatch(text, regex, flag = undefined) {
-        const newRegex = (flag) ? new RegExp(regex, flag) : new RegExp(regex);
-        const match = text.match(newRegex);
-        if (match != null && match[0] == text) {
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
-    checkLoseMatch(text, regex, flag = undefined) {
-        const newRegex = (flag) ? new RegExp(regex, flag) : new RegExp(regex);
-        const match = text.match(newRegex);
-        if (match != null) {
-            return true;
-        }
-        else {
-            return false;
+        const creationConditionObj = creationConditionJisonParser.parse(creationConditionValue);
+        if (!creationConditionObj)
+            return;
+        if (!creationConditionValue.includes('condition') && !creationConditionValue.includes('trigger')) {
+            ErroLogger_1.ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`);
         }
     }
     validateProperties(_properties, nodeType, requeridProperties, cannotContains) {
