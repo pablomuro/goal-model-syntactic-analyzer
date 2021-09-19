@@ -1,14 +1,16 @@
 export interface Config {
+  configuration: any
   type_mapping: TypeMapping[]
   var_mapping: VarMapping[]
+  location_types: string[]
 }
 
-interface TypeMapping {
+export interface TypeMapping {
   hddl_type: string
   ocl_type: string
 }
 
-interface VarMapping {
+export interface VarMapping {
   task_id: string
   map: {
     gm_var: string

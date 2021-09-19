@@ -12,6 +12,7 @@ export class ModelRulesValidatorTest {
 
     const queryNode = nodeSet['7f04d613-d3b0-4312-9ad8-43c7d2a0db3f']
     const achieveNode = nodeSet['a07c4186-f533-4a0a-afbe-6efcb81222f6']
+    const creationNode = nodeSet['c4686de9-74b7-4cac-96e7-20dc2e08609e']
     const task1 = nodeSet['5b67b70f-5934-4f0a-a5fb-a2837fb04b74']
 
     let correctInputList = []
@@ -37,6 +38,7 @@ export class ModelRulesValidatorTest {
     // Sequencia de Id Errado
     // this.modelValidator.validateId('G2: Clean All Dirty Rooms [G2;G3]', this.modelValidator.goalIdChecker()) // Error
 
+    // Validate GoalText
     // Estrutura certa
     correctInputList = [
       'G1: Clean All Dirty Rooms [G2;G3]',
@@ -60,6 +62,27 @@ export class ModelRulesValidatorTest {
 
     validateWrong(false,
       wrongInputList, (input: any) => this.modelValidator.validateGoalTextProperty(input))
+
+    // Validate TaskeName
+    correctInputList = [
+      'AT1: Test',
+      'AT2: test',
+      'AT3: Test',
+    ]
+
+    validate(correctInputList, (input: any) => this.modelValidator.validateTaskTextProperty(input))
+
+    // Estrutura errada
+    wrongInputList = [
+      'G1: Test',
+      'A2: test',
+      'T1:Test',
+      'T2: Test ASD',
+      'T3: Test *&',
+    ]
+
+    validateWrong(false,
+      wrongInputList, (input: any) => this.modelValidator.validateTaskTextProperty(input))
 
     //GoalType
     //Pass
@@ -216,6 +239,35 @@ export class ModelRulesValidatorTest {
 
     // TODO Validate CreationCondition
     //Validate CreationCondition
+    // Validate Controls
+    //PASS
+    correctInputList = [
+      'assertion condition "current_room.is_clean"',
+      'assertion condition "not current_room.is_occupied"',
+      'assertion trigger "E1,E2"',
+
+    ]
+    validate(correctInputList, (input: any) => {
+      creationNode.goalData.customProperties.CreationCondition = input
+      this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition)
+    })
+
+    // Error
+    wrongInputList = [
+      'ass#ertion condition "current_room.is_clean"',
+      'assertion con$dition "not current_room.is_occupied"',
+      'assertion tr$igger "E1,E2"',
+
+      'assertion condition " current_room.is_clean "',
+      'assertion condition current_room.is_occupied"',
+      'assertion trigger " E1, E2 "',
+    ]
+
+    validateWrong(false,
+      wrongInputList, (input: any) => {
+        creationNode.goalData.customProperties.CreationCondition = input
+        this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition)
+      })
 
 
 

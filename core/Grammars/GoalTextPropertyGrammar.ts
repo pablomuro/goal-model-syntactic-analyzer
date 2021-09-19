@@ -30,6 +30,12 @@ export const GoalTextPropertyGrammar: GrammarInterface = {
           goalRuntimeAnnotation: [...$5],
         }`
       ],
+      ["GOAL_ID : GOAL_TEXT end-of-input",
+        `$$ = {
+          goalId: $1,
+          goalText: $3,
+        }`
+      ],
     ],
     goal_runtime_annotation: [
       ["GOAL_ID ANNOTATION_OPERATION GOAL_ID", "$$ = [$1, $2, $3]"],

@@ -19,6 +19,7 @@ export class JisonParser {
         matched: hash.yy.lexer.matched
       }
 
+      // TODO - copiar codigo do prettyPrintRange e colocar chalck
       const printRange = lexerObj.prettyPrintRange({ ...lexerObj.yylloc })
 
       // console.log(hash)

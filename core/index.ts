@@ -1,30 +1,32 @@
-import { ModelRulesValidatorTest } from './../test';
+import FastXmlParser from 'fast-xml-parser';
 import { readFile } from 'fs/promises';
-import path from 'path';
 import { Config } from './definitions/config.types';
 import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
 import { ModelValidator } from './ModelValidator';
 
-
-// TODO - Remover path na mão
-let hddlPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'hddl', 'Room Cleaning.hddl')
-let goalModelPath = path.join('./goal-model-examples', 'Room Cleaning Example', 'gm', 'Room Cleaning.txt')
-let configFilePath = path.join('./goal-model-examples', 'Room Cleaning Example', 'configs', 'Room Cleaning Config.json')
+let isXmlConfigFile = false
 
 main()
 async function main() {
 
   try {
-    const [_hddlPath, _goalModelPath, _configFilePath] = process.argv.slice(2)
+    const [hddlPath, goalModelPath, configFilePath] = process.argv.slice(2)
 
-    if (_hddlPath && _goalModelPath && _configFilePath) {
-      hddlPath = _hddlPath
-      goalModelPath = _goalModelPath
-      configFilePath = _configFilePath
+    if (!hddlPath || !goalModelPath || !configFilePath) {
+      throw Error('Error: failed to load files')
     }
 
-    const configFile: Config = JSON.parse(await (await readFile(configFilePath)).toString())
+    let configFile: Config;
+    if (configFilePath.includes(".xml")) {
+      isXmlConfigFile = true;
+      const xmlFile = (await readFile(configFilePath)).toString();
+
+      configFile = await parseXmlFile(xmlFile)
+    } else {
+      configFile = JSON.parse(await (await readFile(configFilePath)).toString())
+    }
+
     const goalModel = JSON.parse(await (await readFile(goalModelPath)).toString())
     const hddl = await (await readFile(hddlPath)).toString()
 
@@ -35,10 +37,12 @@ async function main() {
 
     const tree = goalTreeBuild(goalModel)
     if (tree) {
-      const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl)
+      const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl, configFile)
       modelValidator.resetValidator()
-      // modelValidator.validateModel()
-      new ModelRulesValidatorTest(modelValidator).test()
+
+      // TODO - Testes aqui
+      modelValidator.validateModel()
+      // new ModelRulesValidatorTest(modelValidator).test()
     }
   } catch (error) {
     console.error(error)
@@ -46,13 +50,21 @@ async function main() {
 }
 
 function checkConfigFile(configFile: Config) {
-  if (!configFile.type_mapping || !configFile.var_mapping) {
+
+  if (isXmlConfigFile) {
+    configFile.type_mapping = fixXMLMapping(configFile.type_mapping, 'mapping')
+    configFile.var_mapping = fixXMLMapping(configFile.var_mapping, 'mapping')
+    configFile.location_types = fixXMLMapping(configFile.location_types, 'type')
+  }
+
+  if (!configFile.type_mapping || !configFile.var_mapping || !configFile.location_types) {
     throw Error('Error: type_mapping or var_mapping missing in the config file')
   };
 }
 
 function extractOclToHddlTypesMap(configFile: Config): Map<string, string> {
   const typesMap: Map<string, string> = new Map()
+
   configFile.type_mapping.forEach(mapping => {
     typesMap.set(mapping.ocl_type, mapping.hddl_type)
   });
@@ -87,4 +99,34 @@ const goalTreeBuild = function (goalModel: GoalModel): GoalTree | undefined {
 
     return tree;
   }
+}
+
+async function parseXmlFile(xmlFile: string) {
+
+  const parserOptions = {
+    attributeNamePrefix: "",
+    ignoreAttributes: false,
+    parseAttributeValue: true,
+    arrayMode: false,
+  }
+
+  let configFile = FastXmlParser.parse(xmlFile, parserOptions)
+
+  return configFile.configuration
+}
+
+function fixXMLMapping(obj: any, property: string) {
+
+  if (Array.isArray(obj)) {
+    obj.forEach((element, index) => {
+      if (element[property] !== undefined) {
+        obj[index] = Array.isArray(element[property]) ? [...element[property]] : element[property]
+      }
+    })
+  }
+  else if (obj[property] !== undefined) {
+    obj = Array.isArray(obj[property]) ? [...obj[property]] : obj[property]
+  }
+
+  return (Array.isArray(obj)) ? obj : [obj]
 }

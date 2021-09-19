@@ -1,3 +1,4 @@
+import { Config } from './definitions/config.types';
 import { ErrorLogger } from './ErroLogger';
 import { GoalTree, Node } from './GoalTree';
 import { ModelRulesValidator } from './ModelRulesValidator';
@@ -24,9 +25,10 @@ export class ModelValidator extends ModelRulesValidator {
     tree: GoalTree,
     typesMap: Map<string, string>,
     tasksVarMap: Map<string, Map<string, string>>,
-    hddl: string
+    hddl: string,
+    configFile: Config
   ) {
-    super(tree, typesMap, tasksVarMap, hddl)
+    super(tree, typesMap, tasksVarMap, hddl, configFile)
 
     this.goalIdChecker = this.idChecker(this.GOAL_ID)
     this.taskIdChecker = this.idChecker(this.TASK_ID)
@@ -59,6 +61,9 @@ export class ModelValidator extends ModelRulesValidator {
     validate(current, context, variablesList);
 
     console.log(chalk.greenBright('Validation finished'))
+    const totalOfErros = ErrorLogger.errorCount
+    const consoleFormatter = (totalOfErros > 0) ? chalk.redBright : chalk.greenBright;
+    console.log(consoleFormatter(`Total de errors: ${totalOfErros}`))
     return visited;
   }
   private validateNode(node: Node, context: any, variablesList: ObjectType) {
@@ -141,18 +146,22 @@ export class ModelValidator extends ModelRulesValidator {
     this.validateId(node.goalData.text, this.taskIdChecker())
     this.validateTaskTextProperty(node.goalData.text)
     this.validateTaskProperties(node.goalData.customProperties)
+
+    this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties)
+    const taskParanteProperties = node.parent?.goalData.customProperties
+    if (taskParanteProperties)
+      this.validateTaskPropertiesVariablesWithParentMonitors(taskParanteProperties, node.goalData.customProperties, variablesList)
+
     this.validateTaskNameHddlMap(node.goalData.text, this.hddl)
-    // TODO - ver com Eric, parameters no HDDL e sem parameters no Model, só current_room
-    // typeMap -> Map(1) { 'Room' => 'room' }
-    //   'AT1' => Map(1) { 'current_room' => '?rm' },
-    // possível mapear "current_room: Room" para rm - room
-    // mas quem mapeia "?rt - robotteam" ??
+    this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList)
 
-    this.validateTaskVariablesMapOnHddl(node.goalData.text, this.hddl, variablesList, this.typesMap, this.tasksVarMap)
 
-    // TODO - Validar se parent tem Monitor
-    // console.log(this.typesMap)
-    // console.log(this.tasksVarMap)
+    // TODO - Non group tasks, which are children of non-group goals, must have 1 robot variable in its declaration or a
+    //RobotNumber attribute with 1 present in the range
+
+    // TODO Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition
+
+    // TODO Duvida - ver mapeamento de ?rt - robotteam / ?r - robot
   }
 
 

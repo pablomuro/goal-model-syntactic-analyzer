@@ -1,18 +1,17 @@
+import { Config } from './definitions/config.types';
 import { NodeCustomProperties } from './definitions/goal-model.types';
 import { ErrorLogger } from './ErroLogger';
 import { GoalTree, Node, NodeObject } from './GoalTree';
 import { AchieveConditionGrammar } from './Grammars/AchieveConditionGrammar';
 import { CreationConditionGrammar } from './Grammars/CreationConditionGrammar';
 import { GoalTextPropertyGrammar } from './Grammars/GoalTextPropertyGrammar';
+import { TaskTextPropertyGrammar } from './Grammars/TaskTextPropertyGrammar';
 import { ControlsGrammar, MonitorsGrammar } from './Grammars/MonitorsAndControlsGrammar';
 import { QueriedPropertyGrammar } from './Grammars/QueriedPropertyGrammar';
+import { LocationGrammar, ParamsGrammar, RobotNumberGrammar } from './Grammars/TaskGrammar'
 import { JisonParser } from './JisonParser';
 import { ACHIEVED_CONDITION, CONTROLS, CREATION_CONDITION, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB } from './utils/constants';
-import { getControlsVariablesList, getMonitorsVariablesList, getTaskId, getTaskName, isVariableTypeSequence, ObjectType } from './utils/utils';
-
-const eventListRegex = '[a-zA-Z_0-9]*(\s*,\s*[a-zA-Z_0-9])*'
-const variableIdentifierRegex = '([a-zA-Z][a-zA-Z_.0-9]*)'
-
+import { getControlsVariablesList, getMonitorsVariablesList, getPlainMonitorsVariablesList, getTaskId, getTaskName, getTaskVariablesList, isVariableTypeSequence, ObjectType } from './utils/utils';
 
 const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
 const goalTextPropertyJisonParser = new JisonParser(GoalTextPropertyGrammar)
@@ -20,24 +19,31 @@ const achieveConditionJisonParser = new JisonParser(AchieveConditionGrammar)
 const monitorsJisonParser = new JisonParser(MonitorsGrammar)
 const controlsJisonParser = new JisonParser(ControlsGrammar)
 const creationConditionJisonParser = new JisonParser(CreationConditionGrammar)
+const taskTextPropertyJisonParser = new JisonParser(TaskTextPropertyGrammar)
+const taskLocationJisonParser = new JisonParser(LocationGrammar)
+const taskParamsJisonParser = new JisonParser(ParamsGrammar)
+const taskRobotNumberJisonParser = new JisonParser(RobotNumberGrammar)
 
 export class ModelRulesValidator {
   tree: GoalTree
   typesMap: Map<string, string>
   tasksVarMap: Map<string, Map<string, string>>
   hddl: string
+  configFile: Config
 
   currentNodeRef: { node: NodeObject }
   constructor(
     tree: GoalTree,
     typesMap: Map<string, string>,
     tasksVarMap: Map<string, Map<string, string>>,
-    hddl: string
+    hddl: string,
+    configFile: Config
   ) {
     this.tree = tree
     this.tasksVarMap = tasksVarMap
     this.typesMap = typesMap
     this.hddl = hddl
+    this.configFile = configFile
     this.currentNodeRef = {
       node: { ...tree.root }
     }
@@ -46,16 +52,20 @@ export class ModelRulesValidator {
   }
 
   validateGoalTextProperty(nodeText: string) {
+    if (!nodeText) {
+      ErrorLogger.log('Goal Name is required')
+      return
+    }
     const goalTextPropertyObj = goalTextPropertyJisonParser.parse(nodeText)
     if (!goalTextPropertyObj) return
   }
 
   validateTaskTextProperty(taskText: string) {
-    const taskTextPropertyRegex = /^AT[0-9]+: (\w+\s*)+$/g
-
-    if (!this.checkExactMatch(taskText, taskTextPropertyRegex)) {
-      ErrorLogger.log('Bad Task Name Construction')
+    if (!taskText) {
+      ErrorLogger.log('Task Name is required')
+      return
     }
+    taskTextPropertyJisonParser.parse(taskText)
   }
 
   validateId(nodeText: string, validId: string) {
@@ -161,7 +171,7 @@ export class ModelRulesValidator {
     }
 
     if (variablesList[iteratedVariable] == undefined) {
-      ErrorLogger.log(`Iterated variable: ${iteratedVariable} is not instantiated`)
+      ErrorLogger.log(`Iterated variable: ${iteratedVariable} was not previous instantiated`)
     }
 
     const variableType = variablesList[iteratedVariable]
@@ -202,22 +212,95 @@ export class ModelRulesValidator {
     }
   }
 
-  validateTaskVariablesMapOnHddl(taskText: string, hddl: string, variablesList: ObjectType, typesMap: Map<string, string>, tasksVarMap: Map<string, Map<string, string>>,) {
-    // TODO - ver 
-    const _type = variablesList['current_room']
-    const taskId = getTaskId(taskText)
-    if (_type && taskId) {
-      const hddlVariableIdentifier = tasksVarMap.get(taskId)?.get('current_room')
-      const hddlType = typesMap.get(_type)
-      const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`
-      // console.log(hddlVariable)
-      // ErrorLogger.log('Types diferentes no HDDL')
+  validateTaskVariablesMapOnHddl(properties: NodeCustomProperties, taskText: string, variablesList: ObjectType) {
+
+    const taskName = getTaskName(taskText)
+    const taskVariables = getTaskVariablesList(properties)
+
+    const hddlTaskRegex = `\\(:task ${taskName}\.*\\n`
+    const match = this.hddl.match(new RegExp(hddlTaskRegex))
+
+    if (match != null && match[0]) {
+      const hddlParametersString = match[0].split(':parameters')[1].trim().toString()
+      taskVariables.forEach(variable => {
+        const type = variablesList[variable]
+        const taskId = getTaskId(taskText)
+        if (type && taskId) {
+          const hddlVariableIdentifier = this.tasksVarMap.get(taskId)?.get(variable)
+          const hddlType = this.typesMap.get(type)
+          const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`
+
+          if (!hddlParametersString.includes(hddlVariable)) {
+            ErrorLogger.log(`Task variable: ${variable}: ${type} not mapped as ${hddlVariable} in the HDDL file`)
+          }
+        }
+      })
+      this.validateTaskRobotsOnHddl(properties, hddlParametersString)
+    }
+  }
+
+  validateTaskRobotsOnHddl(properties: NodeCustomProperties, hddlParametersString: string) {
+    // TODO Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition
+
+    // TODO Duvida - ver mapeamento de ?rt - robotteam / ?r - robot
+    const hasRobotsOnHddl = true
+    if (properties.RobotNumber) { }
+  }
+
+  validateIfTaskParentHasMonitors(parentProperties: NodeCustomProperties | undefined) {
+    if (!parentProperties) {
+      ErrorLogger.log('Task musta have a Parent');
+    }
+    else if (!('Monitors' in parentProperties)) {
+      ErrorLogger.log('Task parent must have a Monitors property')
+    }
+  }
+
+  validateTaskPropertiesVariablesWithParentMonitors(parentProperties: NodeCustomProperties, taskProperties: NodeCustomProperties, instantiatedVariablesList: ObjectType) {
+    const variablesList: string[] = []
+
+    if (taskProperties.Location) {
+      const locationVariable = taskLocationJisonParser.parse(taskProperties.Location)
+      if (locationVariable) {
+        variablesList.push(locationVariable)
+        const locationVariableType = instantiatedVariablesList[locationVariable]
+        if (!locationVariableType) {
+          ErrorLogger.log(`Location variable: ${locationVariable} does not have a Type`)
+        } else if (!this.configFile.location_types.includes(locationVariableType)) {
+          ErrorLogger.log(`Location variable type: ${locationVariableType} is not declared in location_types on the config file`)
+        }
+      }
+    }
+    if (taskProperties.Params) {
+      const paramsVariables = taskParamsJisonParser.parse(taskProperties.Params)
+      if (paramsVariables)
+        variablesList.push(...paramsVariables)
+    }
+    if (taskProperties.RobotNumber) {
+      const robotNumberObj = taskRobotNumberJisonParser.parse(taskProperties.RobotNumber)
+      if (robotNumberObj && robotNumberObj.type === 'RANGE') {
+        const [minRobot, maxRobot] = robotNumberObj.value
+        if ((minRobot && maxRobot) && (parseInt(minRobot) > parseInt(maxRobot))) {
+          ErrorLogger.log(`RobotNumber Range: minimum robot number is grater than the maximum number`);
+        }
+      }
     }
 
+    if (variablesList && parentProperties.Monitors) {
+      const monitorsVariablesList = getPlainMonitorsVariablesList(parentProperties.Monitors)
+
+      variablesList.forEach((variable: string) => {
+        if (!monitorsVariablesList.includes(variable)) {
+          ErrorLogger.log(`Task Variable: ${variable} not present in parent Monitors property`)
+        }
+        if (!instantiatedVariablesList[variable]) {
+          ErrorLogger.log(`Task Variable: ${variable} was not previous instantiated`)
+        }
+      })
+    }
   }
 
   validateMonitorsProperty(monitorsValue: string | undefined, variablesList: ObjectType) {
-
     if (!monitorsValue) {
       ErrorLogger.log('No Monitors value defined')
       return
@@ -228,36 +311,12 @@ export class ModelRulesValidator {
     if (!monitorsObj) return
 
     const monitorsVariablesList = getMonitorsVariablesList(monitorsValue)
-    // TODO
-    console.log(monitorsObj)
-    console.log(monitorsVariablesList)
 
     monitorsVariablesList.forEach(variable => {
       if (!variablesList[variable.identifier]) {
-        ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors is not instantiated`)
+        ErrorLogger.log(`Variable: ${variable.identifier} used on Monitors was not previous instantiated`)
       }
     })
-
-    // if (!this.checkExactMatch(monitorsValue, monitorsPropertyRegex)) {
-    //   let errorMsg = `Bad Monitors Property Construction:\n`
-    //   errorMsg += ` Variable(s) identifier or type, bad format\n`
-    //   const monitorVariablesMatch = monitorsValue.match(new RegExp(`${variableIdentifierRegex}${optionalTypeRegex}`, 'g'))
-    //   if (monitorVariablesMatch) {
-    //     monitorsVariablesList.forEach(variable => {
-    //       let badFormat = true;
-    //       monitorVariablesMatch.forEach(matchVariable => {
-    //         if (matchVariable.includes(variable.identifier)) {
-    //           badFormat = false
-    //           return
-    //         }
-    //       })
-    //       if (badFormat) {
-    //         errorMsg += ` Variable: ${variable.identifier} is bad formatted`
-    //       }
-    //     })
-    //   }
-    //   ErrorLogger.log(errorMsg)
-    // }
   }
   validateControlsProperty(controlsValue: string | undefined) {
 
@@ -283,35 +342,13 @@ export class ModelRulesValidator {
     if (!creationConditionValue) {
       return
     }
-    const creationConditionObj = creationConditionJisonParser.parse('')
+    const creationConditionObj = creationConditionJisonParser.parse(creationConditionValue)
     if (!creationConditionObj) return
 
-    let creationConditionRegex;
-    if (creationConditionValue.includes('condition')) {
-      creationConditionRegex = new RegExp(`assertion condition "(\\!|not )?${variableIdentifierRegex}"`, 'g')
-      if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
-        ErrorLogger.log('Bad CreationCondition Construction')
-        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
-      }
-    } else if (creationConditionValue.includes('trigger')) {
-      creationConditionRegex = new RegExp(`assertion trigger "${eventListRegex}"`, 'g')
-      if (!this.checkExactMatch(creationConditionValue, creationConditionRegex)) {
-        ErrorLogger.log('Bad CreationCondition Construction')
-        // TODO - se erro, falar qual erro, ver groups e oq ta faltando
-      }
-    } else {
+    if (!creationConditionValue.includes('condition') && !creationConditionValue.includes('trigger')) {
       ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`)
     }
 
-  }
-  private checkExactMatch(text: string, regex: RegExp | string, flag: string | undefined = undefined) {
-    const newRegex = (flag) ? new RegExp(regex, flag) : new RegExp(regex)
-    const match = text.match(newRegex)
-    if (match != null && match[0] == text) {
-      return true
-    } else {
-      return false
-    }
   }
 
   private validateProperties(_properties: NodeCustomProperties, nodeType: string, requeridProperties: string[], cannotContains: string[]) {

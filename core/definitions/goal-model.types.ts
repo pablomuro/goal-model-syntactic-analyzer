@@ -42,6 +42,9 @@ export interface NodeCustomProperties {
   Monitors?: string
   AchieveCondition?: string
   CreationCondition?: string
+  Location?: string
+  Params?: string
+  RobotNumber?: string
 }
 export interface Link {
   id: string

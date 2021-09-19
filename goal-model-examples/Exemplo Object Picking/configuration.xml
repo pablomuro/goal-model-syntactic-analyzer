@@ -14,7 +14,7 @@
 
     <location_types>
         <type>Room</type>
-    </location_type>
+    </location_types>
 
     <type_mapping>
         <mapping>
@@ -54,7 +54,7 @@
             <relationship_type>attribute</relationship_type>
             <attribute_name>objects</attribute_name>
             <belongs_to>world_db</belongs_to>
-            <mapped_type>predicate</predicate>
+            <predicate>predicate</predicate>
             <map>
                 <pred>at</pred>
                 <arg_sorts number="2">obj room</arg_sorts>
