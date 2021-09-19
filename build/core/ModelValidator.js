@@ -117,12 +117,13 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
         this.validateTaskProperties(node.goalData.customProperties);
         this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties);
         const taskParanteProperties = node.parent?.goalData.customProperties;
-        if (taskParanteProperties)
+        let parentGoalIsGroupFalse = false;
+        if (taskParanteProperties) {
             this.validateTaskPropertiesVariablesWithParentMonitors(taskParanteProperties, node.goalData.customProperties, variablesList);
+            parentGoalIsGroupFalse = this.parentGoalIsGroupFalse(taskParanteProperties);
+        }
         this.validateTaskNameHddlMap(node.goalData.text, this.hddl);
-        this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList);
-        // TODO - Non group tasks, which are children of non-group goals, must have 1 robot variable in its declaration or a
-        //RobotNumber attribute with 1 present in the range
+        this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList, parentGoalIsGroupFalse);
     }
 }
 exports.ModelValidator = ModelValidator;
