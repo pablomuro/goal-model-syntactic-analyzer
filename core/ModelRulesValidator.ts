@@ -239,12 +239,37 @@ export class ModelRulesValidator {
     }
   }
 
-  validateTaskRobotsOnHddl(properties: NodeCustomProperties, hddlParametersString: string) {
-    // TODO Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition
+  validateTaskRobotsOnHddl(taskProperties: NodeCustomProperties, hddlParametersString: string) {
 
-    // TODO Duvida - ver mapeamento de ?rt - robotteam / ?r - robot
-    const hasRobotsOnHddl = true
-    if (properties.RobotNumber) { }
+    const hasRobotTeam = hddlParametersString.includes('robotteam')
+    const hasRobotsOnHddl = (hasRobotTeam || hddlParametersString.includes('robot'))
+    if (taskProperties.RobotNumber) {
+      const robotNumberObj = taskRobotNumberJisonParser.parse(taskProperties.RobotNumber)
+      if (robotNumberObj) {
+        if (robotNumberObj.type === 'RANGE' && !hasRobotTeam) {
+          ErrorLogger.log(`RobotNumber of Range type must me mapped to a robotteam variable in the HDDL definition`);
+        }
+        if (robotNumberObj.type === 'NUMBER' && !hasRobotTeam) {
+          try {
+            const hddlRobotCountMatch = hddlParametersString.match(/- (robot)/g)
+            if (!hddlRobotCountMatch) throw new Error
+
+            const hddlRobotCount = hddlRobotCountMatch.length
+            if (parseInt(robotNumberObj.value) != hddlRobotCount) {
+              throw new Error
+            }
+          } catch (e) {
+
+            ErrorLogger.log(`RobotNumber with value: ${robotNumberObj.value} must map ${robotNumberObj.value} "robots" or a "robotteam" variable in the HDDL definition`);
+          }
+
+          const robotNumber = robotNumberObj.value
+
+        }
+      }
+    } else if (!taskProperties.RobotNumber && hasRobotsOnHddl) {
+      ErrorLogger.log(`Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition`)
+    }
   }
 
   validateIfTaskParentHasMonitors(parentProperties: NodeCustomProperties | undefined) {

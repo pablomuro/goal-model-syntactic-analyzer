@@ -159,10 +159,5 @@ export class ModelValidator extends ModelRulesValidator {
     // TODO - Non group tasks, which are children of non-group goals, must have 1 robot variable in its declaration or a
     //RobotNumber attribute with 1 present in the range
 
-    // TODO Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition
-
-    // TODO Duvida - ver mapeamento de ?rt - robotteam / ?r - robot
   }
-
-
 }
