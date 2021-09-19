@@ -10,7 +10,7 @@ import { ControlsGrammar, MonitorsGrammar } from './Grammars/MonitorsAndControls
 import { QueriedPropertyGrammar } from './Grammars/QueriedPropertyGrammar';
 import { LocationGrammar, ParamsGrammar, RobotNumberGrammar } from './Grammars/TaskGrammar'
 import { JisonParser } from './JisonParser';
-import { ACHIEVED_CONDITION, CONTROLS, CREATION_CONDITION, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB } from './utils/constants';
+import { ACHIEVED_CONDITION, CONTROLS, CREATION_CONDITION, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, ONE_ROBOT, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB, GROUP_FALSE } from './utils/constants';
 import { getControlsVariablesList, getMonitorsVariablesList, getPlainMonitorsVariablesList, getTaskId, getTaskName, getTaskVariablesList, isVariableTypeSequence, ObjectType } from './utils/utils';
 
 const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
@@ -212,13 +212,13 @@ export class ModelRulesValidator {
     }
   }
 
-  validateTaskVariablesMapOnHddl(properties: NodeCustomProperties, taskText: string, variablesList: ObjectType) {
+  validateTaskVariablesMapOnHddl(properties: NodeCustomProperties, taskText: string, variablesList: ObjectType, parentGoalIsGroupFalse: boolean) {
 
     const taskName = getTaskName(taskText)
     const taskVariables = getTaskVariablesList(properties)
 
-    const hddlTaskRegex = `\\(:task ${taskName}\.*\\n`
-    const match = this.hddl.match(new RegExp(hddlTaskRegex))
+    const hddlTaskRegex = `\\(:task ${taskName}\.*\\)`
+    const match = this.hddl.toString().match(new RegExp(hddlTaskRegex, 'g'))
 
     if (match != null && match[0]) {
       const hddlParametersString = match[0].split(':parameters')[1].trim().toString()
@@ -235,23 +235,48 @@ export class ModelRulesValidator {
           }
         }
       })
-      this.validateTaskRobotsOnHddl(properties, hddlParametersString)
+      this.validateTaskRobotsOnHddl(properties, hddlParametersString, parentGoalIsGroupFalse)
     }
   }
 
-  validateTaskRobotsOnHddl(taskProperties: NodeCustomProperties, hddlParametersString: string) {
+  validateTaskRobotsOnHddl(taskProperties: NodeCustomProperties, hddlParametersString: string, parentGoalIsGroupFalse: boolean) {
 
-    const hasRobotTeam = hddlParametersString.includes('robotteam')
-    const hasRobotsOnHddl = (hasRobotTeam || hddlParametersString.includes('robot'))
+
+    const robotRegex = /(robot)(\s|\))/g
+    const robotTeamRegex = /(robotteam)(\s|\))/g
+
+    const hasRobotTeam = (hddlParametersString.match(new RegExp(robotTeamRegex)) != null)
+    const hasRobot = (hddlParametersString.match(new RegExp(robotRegex)) != null)
+
+    const hasRobotsOnHddl = (hasRobotTeam || hasRobot)
+
+    const hddlRobotCountMatch = hddlParametersString.match(new RegExp(robotRegex))
+
     if (taskProperties.RobotNumber) {
       const robotNumberObj = taskRobotNumberJisonParser.parse(taskProperties.RobotNumber)
       if (robotNumberObj) {
+        if (parentGoalIsGroupFalse) {
+          try {
+            if (robotNumberObj.type === 'RANGE') {
+              const minRobotNumber = robotNumberObj.value[0]
+              if (minRobotNumber != ONE_ROBOT) throw `Range: [${robotNumberObj.value.join(",")}] must start with ${ONE_ROBOT}`
+            } else {
+              if (!hddlRobotCountMatch) throw 'None "robot" variable defined in the Task HDDL definition'
+              const hddlRobotCount = hddlRobotCountMatch.length
+              if (hddlRobotCount != parseInt(ONE_ROBOT)) throw `Just one "robot" variable must be defined in HDDL definition, got ${hddlRobotCount}`
+            }
+          } catch (errorMessage: any) {
+            ErrorLogger.log(
+              `Task with a Non Group Parent must have 1 "robot" variable in its declaration or a RobotNumber attribute with 1 present in the range\n ->${errorMessage ? errorMessage : ''}`
+            )
+          }
+        }
+
         if (robotNumberObj.type === 'RANGE' && !hasRobotTeam) {
           ErrorLogger.log(`RobotNumber of Range type must me mapped to a robotteam variable in the HDDL definition`);
         }
         if (robotNumberObj.type === 'NUMBER' && !hasRobotTeam) {
           try {
-            const hddlRobotCountMatch = hddlParametersString.match(/- (robot)/g)
             if (!hddlRobotCountMatch) throw new Error
 
             const hddlRobotCount = hddlRobotCountMatch.length
@@ -259,7 +284,6 @@ export class ModelRulesValidator {
               throw new Error
             }
           } catch (e) {
-
             ErrorLogger.log(`RobotNumber with value: ${robotNumberObj.value} must map ${robotNumberObj.value} "robots" or a "robotteam" variable in the HDDL definition`);
           }
 
@@ -268,7 +292,7 @@ export class ModelRulesValidator {
         }
       }
     } else if (!taskProperties.RobotNumber && hasRobotsOnHddl) {
-      ErrorLogger.log(`Tasks without the RobotNumber attribute cannot have robotteam variables in the HDDL definition`)
+      ErrorLogger.log(`Tasks without a RobotNumber attribute cannot have a "robotteam" variables in the HDDL definition`)
     }
   }
 
@@ -374,6 +398,12 @@ export class ModelRulesValidator {
       ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`)
     }
 
+  }
+
+  // ============ aux methods  ================= //
+
+  protected parentGoalIsGroupFalse(parentProperties: NodeCustomProperties) {
+    return (parentProperties.Group && parentProperties.Group === GROUP_FALSE) ? true : false
   }
 
   private validateProperties(_properties: NodeCustomProperties, nodeType: string, requeridProperties: string[], cannotContains: string[]) {

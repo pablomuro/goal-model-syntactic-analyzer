@@ -45,6 +45,7 @@ export interface NodeCustomProperties {
   Location?: string
   Params?: string
   RobotNumber?: string
+  Group?: string
 }
 export interface Link {
   id: string

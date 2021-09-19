@@ -19,3 +19,5 @@ export const CONTROLS = 'Controls'
 
 export const WORLD_DB = 'world_db'
 
+export const ONE_ROBOT = '1'
+export const GROUP_FALSE = 'False'

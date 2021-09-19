@@ -60,10 +60,11 @@ export class ModelValidator extends ModelRulesValidator {
     };
     validate(current, context, variablesList);
 
-    console.log(chalk.greenBright('Validation finished'))
+
     const totalOfErros = ErrorLogger.errorCount
     const consoleFormatter = (totalOfErros > 0) ? chalk.redBright.bold : chalk.greenBright.bold;
     console.log(consoleFormatter(`Total of Errors: ${totalOfErros}`))
+    console.log(chalk.greenBright('Validation finished\n'))
     return visited;
   }
   private validateNode(node: Node, context: any, variablesList: ObjectType) {
@@ -149,15 +150,14 @@ export class ModelValidator extends ModelRulesValidator {
 
     this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties)
     const taskParanteProperties = node.parent?.goalData.customProperties
-    if (taskParanteProperties)
+    let parentGoalIsGroupFalse = false
+    if (taskParanteProperties) {
       this.validateTaskPropertiesVariablesWithParentMonitors(taskParanteProperties, node.goalData.customProperties, variablesList)
+      parentGoalIsGroupFalse = this.parentGoalIsGroupFalse(taskParanteProperties)
+    }
 
     this.validateTaskNameHddlMap(node.goalData.text, this.hddl)
-    this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList)
-
-
-    // TODO - Non group tasks, which are children of non-group goals, must have 1 robot variable in its declaration or a
-    //RobotNumber attribute with 1 present in the range
+    this.validateTaskVariablesMapOnHddl(node.goalData.customProperties, node.goalData.text, variablesList, parentGoalIsGroupFalse)
 
   }
 }
