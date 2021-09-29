@@ -34,7 +34,8 @@
     "scripts": "build/**/*.js",
     "assets": "goal-model-examples/**/*",
     "targets": [
-      "node14-linux-x64"
+      "node14-linux-x64",
+      "node14-win-x64"
     ],
     "outputPath": "dist"
   },
