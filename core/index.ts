@@ -1,10 +1,12 @@
+import { ErrorLogger } from './ErroLogger';
 import FastXmlParser from 'fast-xml-parser';
-import { readFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { ModelRulesValidatorTest } from '../test';
 import { Config } from './definitions/config.types';
 import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
 import { ModelValidator } from './ModelValidator';
+import { writeFileSync } from 'fs';
 
 let isXmlConfigFile = false
 
@@ -43,8 +45,12 @@ async function main() {
       modelValidator.resetValidator()
 
       // TODO - Testes aqui
-      // modelValidator.validateModel()
-      new ModelRulesValidatorTest(modelValidator).test()
+      modelValidator.validateModel()
+      // new ModelRulesValidatorTest(modelValidator).test()
+
+      const errorList = JSON.stringify(ErrorLogger.errorList)
+      writeFileSync('./erros.json', errorList)
+      return errorList
     }
   } catch (error) {
     console.error(error)
