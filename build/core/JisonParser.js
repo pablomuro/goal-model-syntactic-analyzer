@@ -27,7 +27,6 @@ class JisonParser {
             const printErrorRange = () => {
                 return chalk_1.default `{red ${lineNumber} }{white.bold ${erroString}}\n{red ${positionDottedLine}}`;
             };
-            console.log("\n");
             console.log(printErrorRange());
             if (expected && token) {
                 console.log(chalk_1.default `{white.bold Expected : ${expected.join(' or ')} got ${token}}\n`);

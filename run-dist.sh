@@ -52,6 +52,6 @@ cd dist;
 
 # Vital Signs Monitoring
 
-# ./goal-model-syntactic-analyzer "../examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
-#  "../examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
-#  "../examples/Vital Signs Monitoring/configuration/configuration.json"
+./goal-model-syntactic-analyzer "../examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
+ "../examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
+ "../examples/Vital Signs Monitoring/configuration/configuration.json"
