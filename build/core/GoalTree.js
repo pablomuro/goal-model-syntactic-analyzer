@@ -30,6 +30,7 @@ class GoalTree {
     }
     buildTree(nodes, links) {
         const nodeSet = {};
+        nodes.sort((a, b) => a.y - b.y);
         const root = nodes.shift();
         this.root.addGoalData(root);
         nodeSet[root.id] = this.root;
@@ -45,8 +46,17 @@ class GoalTree {
             }
             const childrenLinks = links.filter(link => link.target == nodeId);
             childrenLinks.forEach(childrenLink => currentNode.addChildren(nodeSet[childrenLink.source]));
+            currentNode.children.sort((a, b) => a.goalData.x - b.goalData.x);
         });
         this._nodeSet = nodeSet;
+    }
+    showTree() {
+        function showNode(node, gap) {
+            console.log(gap + node.goalData.text);
+            gap += '  ';
+            node.children.forEach(node => showNode(node, gap));
+        }
+        showNode(this.root, '');
     }
 }
 exports.GoalTree = GoalTree;

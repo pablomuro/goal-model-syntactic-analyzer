@@ -36,6 +36,7 @@ async function main() {
     const tasksVarMap: Map<string, Map<string, string>> = extractTasksVarMap(configFile)
 
     const tree = goalTreeBuild(goalModel)
+    // tree?.showTree()
     if (tree) {
       const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl, configFile)
       modelValidator.resetValidator()
@@ -46,8 +47,7 @@ async function main() {
     }
   } catch (error) {
     console.error(error)
-    // TODO - SAir com código de erro
-    // process.exit(1)
+    process.exit(1)
   }
 }
 

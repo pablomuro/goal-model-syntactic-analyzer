@@ -183,7 +183,10 @@ class ModelRulesValidator {
                     const hddlVariableIdentifier = this.tasksVarMap.get(taskId)?.get(variable);
                     const hddlType = this.typesMap.get(type);
                     const hddlVariable = `${hddlVariableIdentifier} - ${hddlType}`;
-                    if (!hddlParametersString.includes(hddlVariable)) {
+                    if (!hddlVariableIdentifier || !hddlType) {
+                        ErroLogger_1.ErrorLogger.log(`Task variable: ${variable}: ${type} not mapped on task ${taskName} in the HDDL file`);
+                    }
+                    else if (!hddlParametersString.includes(hddlVariable)) {
                         ErroLogger_1.ErrorLogger.log(`Task variable: ${variable}: ${type} not mapped as ${hddlVariable} in the HDDL file`);
                     }
                 }
@@ -240,7 +243,7 @@ class ModelRulesValidator {
             }
         }
         else if (!taskProperties.RobotNumber && hasRobotsOnHddl) {
-            ErroLogger_1.ErrorLogger.log(`Tasks without a RobotNumber attribute cannot have a "robotteam" variables in the HDDL definition`);
+            ErroLogger_1.ErrorLogger.log(`Tasks without a RobotNumber attribute cannot have a "robotteam" or a "robot" variables in the HDDL definition`);
         }
     }
     validateIfTaskParentHasMonitors(parentProperties) {
