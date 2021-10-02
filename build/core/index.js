@@ -30,6 +30,7 @@ async function main() {
         const typesMap = extractOclToHddlTypesMap(configFile);
         const tasksVarMap = extractTasksVarMap(configFile);
         const tree = goalTreeBuild(goalModel);
+        // tree?.showTree()
         if (tree) {
             const modelValidator = new ModelValidator_1.ModelValidator(tree, typesMap, tasksVarMap, hddl, configFile);
             modelValidator.resetValidator();
@@ -40,8 +41,7 @@ async function main() {
     }
     catch (error) {
         console.error(error);
-        // TODO - SAir com código de erro
-        // process.exit(1)
+        process.exit(1);
     }
 }
 function checkConfigFile(configFile) {

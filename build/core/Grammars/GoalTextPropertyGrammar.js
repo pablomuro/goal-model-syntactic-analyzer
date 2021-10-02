@@ -7,7 +7,7 @@ exports.GoalTextPropertyGrammar = {
         rules: [
             [`^G[0-9]+`, "return 'GOAL_ID'"],
             [`FALLBACK`, "return 'ANNOTATION_FALLBACK'"],
-            [`(\\w+\\s*)+`, "return 'GOAL_TEXT'"],
+            [`(\\w+\\W*\\s*)+`, "return 'GOAL_TEXT'"],
             [`#|;`, "return 'ANNOTATION_OPERATION'"],
             [`:${GrammarConstants_1.whiteSpace}`, "return ':'"],
             [`\\[`, "return '['"],
@@ -37,8 +37,12 @@ exports.GoalTextPropertyGrammar = {
             ],
         ],
         goal_runtime_annotation: [
-            ["GOAL_ID ANNOTATION_OPERATION GOAL_ID", "$$ = [$1, $2, $3]"],
+            ["GOAL_ID ANNOTATION_OPERATION goal_id_list", "$$ = [$1, $2, ...$3]"],
             ["ANNOTATION_FALLBACK ( fallback_goal_list )", "$$ = [$1, ...$3]"],
+        ],
+        goal_id_list: [
+            ["GOAL_ID ANNOTATION_OPERATION goal_id_list", "$$ = [$1, $2, ...$3]"],
+            ["GOAL_ID", "$$ = [$1]"],
         ],
         fallback_goal_list: [
             ["GOAL_ID , fallback_goal_list", "$$ = [$1, $2, ...$3]"],
