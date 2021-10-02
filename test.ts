@@ -45,7 +45,8 @@ export class ModelRulesValidatorTest {
       'G1: Clean All Dirty Rooms [G2#G3]',
       'G1: Clean All Dirty Rooms[G2;G3]',
       'G1: Clean All Dirty Rooms [FALLBACK(G1)]',
-      'G1: Clean All Dirty Rooms [FALLBACK(G1,G2)]',
+      'G1: Clean All Dirty Rooms [FALLBACK(FALLBACK(G1,G2),G3)]',
+      'G11: Clean All Dirty Rooms [FALLBACK(G1,G2)]', // tem q dar error parece
       'G1:Clean All Dirty Rooms [G2;G3]'
     ]
 
@@ -57,6 +58,7 @@ export class ModelRulesValidatorTest {
       'G1: Clean All Dirty Rooms [G2%G3]',
       'G1: Clean All Dirty Rooms [G2G3]',
       'G1: Clean All Dirty Rooms FALLBACK',
+      'G1: Clean All Dirty Rooms [FALLBACK(FALLBACK(G1,G2),)]',
       'G1: Clean All Dirty Rooms [FALLBACK(G1,G2,)]',
     ]
 

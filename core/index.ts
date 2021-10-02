@@ -1,5 +1,6 @@
 import FastXmlParser from 'fast-xml-parser';
 import { readFile } from 'fs/promises';
+import { ModelRulesValidatorTest } from '../test';
 import { Config } from './definitions/config.types';
 import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
@@ -42,8 +43,8 @@ async function main() {
       modelValidator.resetValidator()
 
       // TODO - Testes aqui
-      modelValidator.validateModel()
-      // new ModelRulesValidatorTest(modelValidator).test()
+      // modelValidator.validateModel()
+      new ModelRulesValidatorTest(modelValidator).test()
     }
   } catch (error) {
     console.error(error)
