@@ -41,7 +41,9 @@ export interface NodeCustomProperties {
   QueriedProperty?: string
   Monitors?: string
   AchieveCondition?: string
-  CreationCondition?: string
+  Context?: string
+  Trigger?: string
+  Condition?: string
   Location?: string
   Params?: string
   RobotNumber?: string

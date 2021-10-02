@@ -46,7 +46,7 @@ export class ModelRulesValidatorTest {
       'G1: Clean All Dirty Rooms[G2;G3]',
       'G1: Clean All Dirty Rooms [FALLBACK(G1)]',
       'G1: Clean All Dirty Rooms [FALLBACK(FALLBACK(G1,G2),G3)]',
-      'G11: Clean All Dirty Rooms [FALLBACK(G1,G2)]', // tem q dar error parece
+      'G11: Clean All Dirty Rooms [FALLBACK(G1,G2)]',
       'G1:Clean All Dirty Rooms [G2;G3]'
     ]
 
@@ -239,36 +239,67 @@ export class ModelRulesValidatorTest {
         this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
       })
 
-    // TODO Validate CreationCondition
-    //Validate CreationCondition
+    // TODO Validate Context
+    //Validate Context
     // Validate Controls
     //PASS
     correctInputList = [
-      'assertion condition "current_room.is_clean"',
-      'assertion condition "not current_room.is_occupied"',
-      'assertion trigger "E1,E2"',
+      {
+        Context: 'Condition',
+        Condition: 'not current_room.is_occupied',
+      },
+      {
+        Context: 'Condition',
+        Condition: 'not current_room.is_occupied',
+      },
+      {
+        Context: 'Trigger',
+        Trigger: 'E1,E2,E3'
+      },
+      {
+        Context: 'Trigger',
+        Trigger: 'E1'
+      },
 
     ]
     validate(correctInputList, (input: any) => {
-      creationNode.goalData.customProperties.CreationCondition = input
-      this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition)
+      creationNode.goalData.customProperties = {
+        ...input
+      }
+      this.modelValidator.validateContextProperty(creationNode.goalData.customProperties)
     })
 
     // Error
     wrongInputList = [
-      'ass#ertion condition "current_room.is_clean"',
-      'assertion con$dition "not current_room.is_occupied"',
-      'assertion tr$igger "E1,E2"',
 
-      'assertion condition " current_room.is_clean "',
-      'assertion condition current_room.is_occupied"',
-      'assertion trigger " E1, E2 "',
+      {
+        Context: 'Trigger',
+        Condition: 'not current_room.is_occupied',
+      },
+      {
+        Context: 'Condition',
+        Trigger: 'not current_room.is_occupied',
+      },
+      {
+        Context: 'Condition',
+        Trigger: 'E1,E2,E3'
+      },
+      {
+        Context: 'Trigger',
+        Trigger: 'E1, E3'
+      },
+      {
+        Context: 'Condition',
+        Condition: 'not current$_room.is_occupied',
+      },
     ]
 
-    validateWrong(false,
+    validateWrong(true,
       wrongInputList, (input: any) => {
-        creationNode.goalData.customProperties.CreationCondition = input
-        this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition)
+        creationNode.goalData.customProperties = {
+          ...input
+        }
+        this.modelValidator.validateContextProperty(creationNode.goalData.customProperties)
       })
 
 

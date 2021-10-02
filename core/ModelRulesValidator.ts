@@ -3,14 +3,14 @@ import { NodeCustomProperties } from './definitions/goal-model.types';
 import { ErrorLogger } from './ErroLogger';
 import { GoalTree, Node, NodeObject } from './GoalTree';
 import { AchieveConditionGrammar } from './Grammars/AchieveConditionGrammar';
-import { CreationConditionGrammar } from './Grammars/CreationConditionGrammar';
+import { ContextGrammar, TriggerGrammar, ConditionGrammar } from './Grammars/ContextGrammar'
 import { GoalTextPropertyGrammar } from './Grammars/GoalTextPropertyGrammar';
 import { TaskTextPropertyGrammar } from './Grammars/TaskTextPropertyGrammar';
 import { ControlsGrammar, MonitorsGrammar } from './Grammars/MonitorsAndControlsGrammar';
 import { QueriedPropertyGrammar } from './Grammars/QueriedPropertyGrammar';
 import { LocationGrammar, ParamsGrammar, RobotNumberGrammar } from './Grammars/TaskGrammar'
 import { JisonParser } from './JisonParser';
-import { ACHIEVED_CONDITION, CONTROLS, CREATION_CONDITION, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, ONE_ROBOT, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB, GROUP_FALSE } from './utils/constants';
+import { ACHIEVED_CONDITION, CONTROLS, CONTEXT, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, ONE_ROBOT, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB, GROUP_FALSE, TRIGGER, CONDITION } from './utils/constants';
 import { getControlsVariablesList, getMonitorsVariablesList, getPlainMonitorsVariablesList, getTaskId, getTaskName, getTaskVariablesList, isVariableTypeSequence, ObjectType } from './utils/utils';
 
 const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
@@ -18,7 +18,9 @@ const goalTextPropertyJisonParser = new JisonParser(GoalTextPropertyGrammar)
 const achieveConditionJisonParser = new JisonParser(AchieveConditionGrammar)
 const monitorsJisonParser = new JisonParser(MonitorsGrammar)
 const controlsJisonParser = new JisonParser(ControlsGrammar)
-const creationConditionJisonParser = new JisonParser(CreationConditionGrammar)
+const contextJisonParser = new JisonParser(ContextGrammar)
+const triggerJisonParser = new JisonParser(TriggerGrammar)
+const conditionJisonParser = new JisonParser(ConditionGrammar)
 const taskTextPropertyJisonParser = new JisonParser(TaskTextPropertyGrammar)
 const taskLocationJisonParser = new JisonParser(LocationGrammar)
 const taskParamsJisonParser = new JisonParser(ParamsGrammar)
@@ -196,7 +198,7 @@ export class ModelRulesValidator {
 
   validateTaskProperties(_properties: NodeCustomProperties) {
     const requeridProperties: string[] = []
-    const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, CREATION_CONDITION]
+    const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, CONTEXT]
 
     this.validateProperties(_properties, TASK_TYPE, requeridProperties, cannotContains)
   }
@@ -390,15 +392,27 @@ export class ModelRulesValidator {
     })
 
   }
-  validateCreationConditionProperty(creationConditionValue: string | undefined) {
-    if (!creationConditionValue) {
+  validateContextProperty(properties: NodeCustomProperties) {
+    const { Context } = properties
+    if (!Context) {
       return
     }
-    const creationConditionObj = creationConditionJisonParser.parse(creationConditionValue)
-    if (!creationConditionObj) return
 
-    if (!creationConditionValue.includes('condition') && !creationConditionValue.includes('trigger')) {
-      ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`)
+    const { contextType } = contextJisonParser.parse(Context)
+    if (!contextType) return
+
+    if (contextType == TRIGGER) {
+      this.validateProperties(properties, CONTEXT, [TRIGGER], [])
+      const { Trigger } = properties
+      if (Trigger) {
+        const triggerObj = triggerJisonParser.parse(Trigger)
+      }
+    } else if (contextType == CONDITION) {
+      this.validateProperties(properties, CONTEXT, [CONDITION], [])
+      const { Condition } = properties
+      if (Condition) {
+        const conditionObj = conditionJisonParser.parse(Condition)
+      }
     }
 
   }

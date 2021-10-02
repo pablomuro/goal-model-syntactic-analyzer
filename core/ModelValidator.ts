@@ -111,7 +111,7 @@ export class ModelValidator extends ModelRulesValidator {
     this.validateId(node.goalData.text, this.goalIdChecker())
     this.validateGoalType(node.goalData.customProperties.GoalType)
 
-    this.validateCreationConditionProperty(node.goalData.customProperties.CreationCondition)
+    this.validateContextProperty(node.goalData.customProperties)
 
     const validateQueryGoal = () => {
       this.validateQueryGoalProperties(node.goalData.customProperties)

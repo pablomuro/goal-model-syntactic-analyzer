@@ -13,7 +13,9 @@ export const TASK_TYPE = 'Task'
 
 export const QUERIED_PROPERTY = 'QueriedProperty'
 export const ACHIEVED_CONDITION = 'AchieveCondition'
-export const CREATION_CONDITION = 'CreationCondition'
+export const CONTEXT = 'Context'
+export const TRIGGER = 'Trigger'
+export const CONDITION = 'Condition'
 export const MONITORS = 'Monitors'
 export const CONTROLS = 'Controls'
 
