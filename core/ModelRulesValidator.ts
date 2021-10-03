@@ -2,7 +2,7 @@ import { Config } from './definitions/config.types';
 import { NodeCustomProperties } from './definitions/goal-model.types';
 import { ErrorLogger } from './ErroLogger';
 import { GoalTree, Node, NodeObject } from './GoalTree';
-import { AchieveConditionGrammar } from './Grammars/AchieveConditionGrammar';
+import { AchieveConditionGrammar, UniversalAchieveConditionGrammar } from './Grammars/AchieveConditionGrammar';
 import { ContextGrammar, TriggerGrammar, ConditionGrammar } from './Grammars/ContextGrammar'
 import { GoalTextPropertyGrammar } from './Grammars/GoalTextPropertyGrammar';
 import { TaskTextPropertyGrammar } from './Grammars/TaskTextPropertyGrammar';
@@ -10,12 +10,13 @@ import { ControlsGrammar, MonitorsGrammar } from './Grammars/MonitorsAndControls
 import { QueriedPropertyGrammar } from './Grammars/QueriedPropertyGrammar';
 import { LocationGrammar, ParamsGrammar, RobotNumberGrammar } from './Grammars/TaskGrammar'
 import { JisonParser } from './JisonParser';
-import { ACHIEVED_CONDITION, CONTROLS, CONTEXT, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, ONE_ROBOT, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB, GROUP_FALSE, TRIGGER, CONDITION } from './utils/constants';
+import { ACHIEVED_CONDITION, CONTROLS, CONTEXT, GOAL_TYPE_ACHIEVE, GOAL_TYPE_PERFORM, GOAL_TYPE_QUERY, MONITORS, ONE_ROBOT, QUERIED_PROPERTY, TASK_TYPE, WORLD_DB, GROUP_FALSE, TRIGGER, CONDITION, UNIVERSAL_ACHIEVED_CONDITION } from './utils/constants';
 import { getControlsVariablesList, getMonitorsVariablesList, getPlainMonitorsVariablesList, getTaskId, getTaskName, getTaskVariablesList, isVariableTypeSequence, ObjectType } from './utils/utils';
 
 const queriedPropertyJisonParser = new JisonParser(QueriedPropertyGrammar)
 const goalTextPropertyJisonParser = new JisonParser(GoalTextPropertyGrammar)
 const achieveConditionJisonParser = new JisonParser(AchieveConditionGrammar)
+const universalAchieveConditionJisonParser = new JisonParser(UniversalAchieveConditionGrammar)
 const monitorsJisonParser = new JisonParser(MonitorsGrammar)
 const controlsJisonParser = new JisonParser(ControlsGrammar)
 const contextJisonParser = new JisonParser(ContextGrammar)
@@ -97,7 +98,7 @@ export class ModelRulesValidator {
 
   validateQueryGoalProperties(_properties: NodeCustomProperties) {
     const requeridProperties = [QUERIED_PROPERTY, CONTROLS]
-    const cannotContains = [ACHIEVED_CONDITION]
+    const cannotContains = [ACHIEVED_CONDITION, UNIVERSAL_ACHIEVED_CONDITION]
     this.validateProperties(_properties, GOAL_TYPE_QUERY, requeridProperties, cannotContains)
   }
 
@@ -140,28 +141,38 @@ export class ModelRulesValidator {
   }
 
   validateAchieveGoalProperties(_properties: NodeCustomProperties) {
-    const requeridProperties = [ACHIEVED_CONDITION, CONTROLS, MONITORS]
+    const requeridProperties = [CONTROLS, MONITORS]
     const cannotContains = [QUERIED_PROPERTY]
 
     this.validateProperties(_properties, GOAL_TYPE_ACHIEVE, requeridProperties, cannotContains)
   }
 
-  validateAchieveGoalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
+  validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(properties: NodeCustomProperties, variablesList: ObjectType) {
     const achieveConditionValue = properties.AchieveCondition
+    const universalAchieveConditionValue = properties.UniversalAchieveCondition
 
-    if (!achieveConditionValue) {
-      // TODO - Essa condição ainda será validada, atualmente pode ser em Branco
-      ErrorLogger.log('No AchieveCondition value defined')
+    const valid = this.validateDoubleRequiredProperties(properties, GOAL_TYPE_ACHIEVE, ACHIEVED_CONDITION, UNIVERSAL_ACHIEVED_CONDITION)
+    if (!valid) {
+      ErrorLogger.log('Validation of double properties skipped')
       return
     }
 
-    const achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue)
+    let achieveConditionObj;
+
+    if (achieveConditionValue) {
+      achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue)
+    }
+    if (universalAchieveConditionValue) {
+      achieveConditionObj = universalAchieveConditionJisonParser.parse(universalAchieveConditionValue)
+    }
+
     if (!achieveConditionObj) return
 
     if (achieveConditionObj.type == 'Normal') {
       checkControls(achieveConditionObj.variable.split('.')[0]);
       return
     }
+
     const { iteratedVariable, iterationVariable, variablesInCondition } = achieveConditionObj
 
     if (variablesInCondition) {
@@ -198,7 +209,7 @@ export class ModelRulesValidator {
 
   validateTaskProperties(_properties: NodeCustomProperties) {
     const requeridProperties: string[] = []
-    const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, CONTEXT]
+    const cannotContains: string[] = [QUERIED_PROPERTY, ACHIEVED_CONDITION, UNIVERSAL_ACHIEVED_CONDITION, CONTEXT]
 
     this.validateProperties(_properties, TASK_TYPE, requeridProperties, cannotContains)
   }
@@ -403,12 +414,18 @@ export class ModelRulesValidator {
 
     if (contextType == TRIGGER) {
       this.validateProperties(properties, CONTEXT, [TRIGGER], [])
+      const valid = this.validateDoubleRequiredProperties(properties, CONTEXT, TRIGGER, CONDITION)
+      if (!valid)
+        ErrorLogger.log(`Node type: ${CONTEXT} with the value ${TRIGGER} must have a ${TRIGGER} property`)
       const { Trigger } = properties
       if (Trigger) {
         const triggerObj = triggerJisonParser.parse(Trigger)
       }
     } else if (contextType == CONDITION) {
       this.validateProperties(properties, CONTEXT, [CONDITION], [])
+      const valid = this.validateDoubleRequiredProperties(properties, CONTEXT, TRIGGER, CONDITION)
+      if (!valid)
+        ErrorLogger.log(`Node type: ${CONTEXT} with the value ${CONDITION} must have a ${CONDITION} property`)
       const { Condition } = properties
       if (Condition) {
         const conditionObj = conditionJisonParser.parse(Condition)
@@ -435,5 +452,19 @@ export class ModelRulesValidator {
         ErrorLogger.log(`Node type: ${nodeType} cannot contain the property: ${cannotContainProperty}`)
       }
     })
+  }
+
+  private validateDoubleRequiredProperties(
+    _properties: NodeCustomProperties,
+    nodeType: string,
+    firstProperty: string, secondProperty: string
+  ) {
+    const hasFirstProperty = _properties.hasOwnProperty(firstProperty);
+    const hasSecondProperty = _properties.hasOwnProperty(secondProperty);
+    if (hasFirstProperty && hasSecondProperty) {
+      ErrorLogger.log(`Node type: ${nodeType} cannot contain the property: ${firstProperty} and ${secondProperty} at the same time`)
+      return false
+    }
+    return true
   }
 }

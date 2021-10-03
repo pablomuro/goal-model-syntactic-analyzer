@@ -44,8 +44,10 @@ async function main() {
       const modelValidator = new ModelValidator(tree, typesMap, tasksVarMap, hddl, configFile)
       modelValidator.resetValidator()
 
-      // TODO - Testes aqui
+
       modelValidator.validateModel()
+
+      // TODO - Testes aqui
       // new ModelRulesValidatorTest(modelValidator).test()
 
       const errorList = JSON.stringify(ErrorLogger.errorList)

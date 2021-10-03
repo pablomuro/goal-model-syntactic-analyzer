@@ -183,7 +183,21 @@ export class ModelRulesValidatorTest {
       achieveNode.goalData.customProperties.Controls = "current_room : Room"
       achieveNode.goalData.customProperties.Monitors = "rooms";
       achieveNode.goalData.customProperties.AchieveCondition = input
-      this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' })
+      delete achieveNode.goalData.customProperties.UniversalAchieveCondition
+      this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' })
+    })
+
+    correctInputList = [
+      'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
+      'current_room.is_clean >= 1',
+      'current_room.is_clean'
+    ]
+    validate(correctInputList, (input: any) => {
+      achieveNode.goalData.customProperties.Controls = "current_room : Room"
+      achieveNode.goalData.customProperties.Monitors = "rooms";
+      achieveNode.goalData.customProperties.UniversalAchieveCondition = input
+      delete achieveNode.goalData.customProperties.AchieveCondition
+      this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' })
     })
 
     // Error
@@ -196,7 +210,7 @@ export class ModelRulesValidatorTest {
     validateWrong(false,
       wrongInputList, (input: any) => {
         achieveNode.goalData.customProperties.AchieveCondition = input
-        this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
+        this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' })
       })
 
 
@@ -239,10 +253,6 @@ export class ModelRulesValidatorTest {
         this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' })
       })
 
-    // TODO Validate Context
-    //Validate Context
-    // Validate Controls
-    //PASS
     correctInputList = [
       {
         Context: 'Condition',

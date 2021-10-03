@@ -41,6 +41,7 @@ export interface NodeCustomProperties {
   QueriedProperty?: string
   Monitors?: string
   AchieveCondition?: string
+  UniversalAchieveCondition?: string
   Context?: string
   Trigger?: string
   Condition?: string

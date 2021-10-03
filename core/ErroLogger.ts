@@ -15,6 +15,7 @@ export class ErrorLogger {
 
     const message = {
       nodeId: this.currentNodeRef.node.goalData.id,
+      nodeName,
       message: erroMessage
     }
 

@@ -122,7 +122,7 @@ export class ModelValidator extends ModelRulesValidator {
     const validateAchieveGoal = () => {
       this.validateAchieveGoalProperties(node.goalData.customProperties)
       this.validateMonitorsProperty(node.goalData.customProperties.Monitors, variablesList)
-      this.validateAchieveGoalAchieveCondition(node.goalData.customProperties, variablesList)
+      this.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(node.goalData.customProperties, variablesList)
       this.validateNodeIsNotALeaf(node.children)
     }
 

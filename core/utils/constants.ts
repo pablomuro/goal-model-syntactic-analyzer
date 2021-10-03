@@ -13,6 +13,7 @@ export const TASK_TYPE = 'Task'
 
 export const QUERIED_PROPERTY = 'QueriedProperty'
 export const ACHIEVED_CONDITION = 'AchieveCondition'
+export const UNIVERSAL_ACHIEVED_CONDITION = 'UniversalAchieveCondition'
 export const CONTEXT = 'Context'
 export const TRIGGER = 'Trigger'
 export const CONDITION = 'Condition'
