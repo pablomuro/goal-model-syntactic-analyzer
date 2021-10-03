@@ -37,7 +37,8 @@ class ModelRulesValidatorTest {
             'G1: Clean All Dirty Rooms [G2#G3]',
             'G1: Clean All Dirty Rooms[G2;G3]',
             'G1: Clean All Dirty Rooms [FALLBACK(G1)]',
-            'G1: Clean All Dirty Rooms [FALLBACK(G1,G2)]',
+            'G1: Clean All Dirty Rooms [FALLBACK(FALLBACK(G1,G2),G3)]',
+            'G11: Clean All Dirty Rooms [FALLBACK(G1,G2)]',
             'G1:Clean All Dirty Rooms [G2;G3]'
         ];
         validate(correctInputList, (input) => this.modelValidator.validateGoalTextProperty(input));
@@ -47,6 +48,7 @@ class ModelRulesValidatorTest {
             'G1: Clean All Dirty Rooms [G2%G3]',
             'G1: Clean All Dirty Rooms [G2G3]',
             'G1: Clean All Dirty Rooms FALLBACK',
+            'G1: Clean All Dirty Rooms [FALLBACK(FALLBACK(G1,G2),)]',
             'G1: Clean All Dirty Rooms [FALLBACK(G1,G2,)]',
         ];
         validateWrong(false, wrongInputList, (input) => this.modelValidator.validateGoalTextProperty(input));
@@ -146,13 +148,28 @@ class ModelRulesValidatorTest {
         correctInputList = [
             'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
             'current_room.is_clean >= 1',
-            'current_room.is_clean'
+            'current_room.is_clean',
+            ''
         ];
         validate(correctInputList, (input) => {
             achieveNode.goalData.customProperties.Controls = "current_room : Room";
             achieveNode.goalData.customProperties.Monitors = "rooms";
             achieveNode.goalData.customProperties.AchieveCondition = input;
-            this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' });
+            delete achieveNode.goalData.customProperties.UniversalAchieveCondition;
+            this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' });
+        });
+        correctInputList = [
+            'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
+            'current_room.is_clean >= 1',
+            'current_room.is_clean',
+            ''
+        ];
+        validate(correctInputList, (input) => {
+            achieveNode.goalData.customProperties.Controls = "current_room : Room";
+            achieveNode.goalData.customProperties.Monitors = "rooms";
+            achieveNode.goalData.customProperties.UniversalAchieveCondition = input;
+            delete achieveNode.goalData.customProperties.AchieveCondition;
+            this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)', current_room: 'Sequence(Room)' });
         });
         // Error
         wrongInputList = [
@@ -162,7 +179,7 @@ class ModelRulesValidatorTest {
         ];
         validateWrong(false, wrongInputList, (input) => {
             achieveNode.goalData.customProperties.AchieveCondition = input;
-            this.modelValidator.validateAchieveGoalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' });
+            this.modelValidator.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(achieveNode.goalData.customProperties, { rooms: 'Sequence(Room)' });
         });
         // Validate Controls
         //PASS
@@ -196,31 +213,61 @@ class ModelRulesValidatorTest {
             achieveNode.goalData.customProperties.Monitors = input;
             this.modelValidator.validateMonitorsProperty(achieveNode.goalData.customProperties.Monitors, { rooms: 'Sequence(Room)', rooms2: 'Sequence(Room)' });
         });
-        // TODO Validate CreationCondition
-        //Validate CreationCondition
-        // Validate Controls
-        //PASS
         correctInputList = [
-            'assertion condition "current_room.is_clean"',
-            'assertion condition "not current_room.is_occupied"',
-            'assertion trigger "E1,E2"',
+            {
+                Context: 'Condition',
+                Condition: 'not current_room.is_occupied',
+            },
+            {
+                Context: 'Condition',
+                Condition: 'not current_room.is_occupied',
+            },
+            {
+                Context: 'Trigger',
+                Trigger: 'E1,E2,E3'
+            },
+            {
+                Context: 'Trigger',
+                Trigger: 'E1'
+            },
         ];
+        let count = 0;
         validate(correctInputList, (input) => {
-            creationNode.goalData.customProperties.CreationCondition = input;
-            this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition);
+            creationNode.goalData.customProperties = {
+                ...input
+            };
+            console.log((++count));
+            this.modelValidator.validateContextProperty(creationNode.goalData.customProperties);
         });
         // Error
         wrongInputList = [
-            'ass#ertion condition "current_room.is_clean"',
-            'assertion con$dition "not current_room.is_occupied"',
-            'assertion tr$igger "E1,E2"',
-            'assertion condition " current_room.is_clean "',
-            'assertion condition current_room.is_occupied"',
-            'assertion trigger " E1, E2 "',
+            {
+                Context: 'Trigger',
+                Condition: 'not current_room.is_occupied',
+            },
+            {
+                Context: 'Condition',
+                Trigger: 'not current_room.is_occupied',
+            },
+            {
+                Context: 'Condition',
+                Trigger: 'E1,E2,E3'
+            },
+            {
+                Context: 'Trigger',
+                Trigger: 'E1, E3'
+            },
+            {
+                Context: 'Condition',
+                Condition: 'not current$_room.is_occupied',
+            },
         ];
-        validateWrong(false, wrongInputList, (input) => {
-            creationNode.goalData.customProperties.CreationCondition = input;
-            this.modelValidator.validateCreationConditionProperty(creationNode.goalData.customProperties.CreationCondition);
+        validateWrong(true, wrongInputList, (input) => {
+            creationNode.goalData.customProperties = {
+                ...input
+            };
+            console.log((++count));
+            this.modelValidator.validateContextProperty(creationNode.goalData.customProperties);
         });
         // ==================================================
         console.log(`Total de errors: ${ErroLogger_1.ErrorLogger.errorCount}`);

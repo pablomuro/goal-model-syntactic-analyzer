@@ -7,6 +7,7 @@ import { GoalModel } from './definitions/goal-model.types';
 import { GoalTree } from './GoalTree';
 import { ModelValidator } from './ModelValidator';
 import { writeFileSync } from 'fs';
+import { stdout } from 'process';
 
 let isXmlConfigFile = false
 
@@ -51,8 +52,7 @@ async function main() {
       // new ModelRulesValidatorTest(modelValidator).test()
 
       const errorList = JSON.stringify(ErrorLogger.errorList)
-      writeFileSync('./erros.json', errorList)
-      return errorList
+      writeFileSync('goal-model-error-list.json', errorList)
     }
   } catch (error) {
     console.error(error)

@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ModelRulesValidator = void 0;
 const ErroLogger_1 = require("./ErroLogger");
 const AchieveConditionGrammar_1 = require("./Grammars/AchieveConditionGrammar");
-const CreationConditionGrammar_1 = require("./Grammars/CreationConditionGrammar");
+const ContextGrammar_1 = require("./Grammars/ContextGrammar");
 const GoalTextPropertyGrammar_1 = require("./Grammars/GoalTextPropertyGrammar");
 const TaskTextPropertyGrammar_1 = require("./Grammars/TaskTextPropertyGrammar");
 const MonitorsAndControlsGrammar_1 = require("./Grammars/MonitorsAndControlsGrammar");
@@ -15,9 +15,12 @@ const utils_1 = require("./utils/utils");
 const queriedPropertyJisonParser = new JisonParser_1.JisonParser(QueriedPropertyGrammar_1.QueriedPropertyGrammar);
 const goalTextPropertyJisonParser = new JisonParser_1.JisonParser(GoalTextPropertyGrammar_1.GoalTextPropertyGrammar);
 const achieveConditionJisonParser = new JisonParser_1.JisonParser(AchieveConditionGrammar_1.AchieveConditionGrammar);
+const universalAchieveConditionJisonParser = new JisonParser_1.JisonParser(AchieveConditionGrammar_1.UniversalAchieveConditionGrammar);
 const monitorsJisonParser = new JisonParser_1.JisonParser(MonitorsAndControlsGrammar_1.MonitorsGrammar);
 const controlsJisonParser = new JisonParser_1.JisonParser(MonitorsAndControlsGrammar_1.ControlsGrammar);
-const creationConditionJisonParser = new JisonParser_1.JisonParser(CreationConditionGrammar_1.CreationConditionGrammar);
+const contextJisonParser = new JisonParser_1.JisonParser(ContextGrammar_1.ContextGrammar);
+const triggerJisonParser = new JisonParser_1.JisonParser(ContextGrammar_1.TriggerGrammar);
+const conditionJisonParser = new JisonParser_1.JisonParser(ContextGrammar_1.ConditionGrammar);
 const taskTextPropertyJisonParser = new JisonParser_1.JisonParser(TaskTextPropertyGrammar_1.TaskTextPropertyGrammar);
 const taskLocationJisonParser = new JisonParser_1.JisonParser(TaskGrammar_1.LocationGrammar);
 const taskParamsJisonParser = new JisonParser_1.JisonParser(TaskGrammar_1.ParamsGrammar);
@@ -73,7 +76,7 @@ class ModelRulesValidator {
     }
     validateQueryGoalProperties(_properties) {
         const requeridProperties = [constants_1.QUERIED_PROPERTY, constants_1.CONTROLS];
-        const cannotContains = [constants_1.ACHIEVED_CONDITION];
+        const cannotContains = [constants_1.ACHIEVED_CONDITION, constants_1.UNIVERSAL_ACHIEVED_CONDITION];
         this.validateProperties(_properties, constants_1.GOAL_TYPE_QUERY, requeridProperties, cannotContains);
     }
     validateQueryGoalQueriedProperty(properties, variablesList) {
@@ -110,18 +113,28 @@ class ModelRulesValidator {
         }
     }
     validateAchieveGoalProperties(_properties) {
-        const requeridProperties = [constants_1.ACHIEVED_CONDITION, constants_1.CONTROLS, constants_1.MONITORS];
+        const requeridProperties = [constants_1.CONTROLS, constants_1.MONITORS];
         const cannotContains = [constants_1.QUERIED_PROPERTY];
         this.validateProperties(_properties, constants_1.GOAL_TYPE_ACHIEVE, requeridProperties, cannotContains);
     }
-    validateAchieveGoalAchieveCondition(properties, variablesList) {
+    validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(properties, variablesList) {
         const achieveConditionValue = properties.AchieveCondition;
-        if (!achieveConditionValue) {
-            // TODO - Essa condição ainda será validada, atualmente pode ser em Branco
-            ErroLogger_1.ErrorLogger.log('No AchieveCondition value defined');
+        const universalAchieveConditionValue = properties.UniversalAchieveCondition;
+        const valid = this.validateDoubleRequiredProperties(properties, constants_1.GOAL_TYPE_ACHIEVE, constants_1.ACHIEVED_CONDITION, constants_1.UNIVERSAL_ACHIEVED_CONDITION);
+        if (!valid) {
+            ErroLogger_1.ErrorLogger.log('Validation of double properties skipped');
             return;
         }
-        const achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue);
+        let achieveConditionObj;
+        if (achieveConditionValue) {
+            achieveConditionObj = achieveConditionJisonParser.parse(achieveConditionValue);
+        }
+        if (universalAchieveConditionValue) {
+            achieveConditionObj = universalAchieveConditionJisonParser.parse(universalAchieveConditionValue);
+        }
+        else if (properties.hasOwnProperty(constants_1.UNIVERSAL_ACHIEVED_CONDITION)) {
+            ErroLogger_1.ErrorLogger.log('UniversalAchieveCondition must have a value');
+        }
         if (!achieveConditionObj)
             return;
         if (achieveConditionObj.type == 'Normal') {
@@ -157,7 +170,7 @@ class ModelRulesValidator {
     }
     validateTaskProperties(_properties) {
         const requeridProperties = [];
-        const cannotContains = [constants_1.QUERIED_PROPERTY, constants_1.ACHIEVED_CONDITION, constants_1.CREATION_CONDITION];
+        const cannotContains = [constants_1.QUERIED_PROPERTY, constants_1.ACHIEVED_CONDITION, constants_1.UNIVERSAL_ACHIEVED_CONDITION, constants_1.CONTEXT];
         this.validateProperties(_properties, constants_1.TASK_TYPE, requeridProperties, cannotContains);
     }
     validateTaskNameHddlMap(taskText, hddl) {
@@ -326,15 +339,33 @@ class ModelRulesValidator {
             }
         });
     }
-    validateCreationConditionProperty(creationConditionValue) {
-        if (!creationConditionValue) {
+    validateContextProperty(properties) {
+        const { Context } = properties;
+        if (!Context) {
             return;
         }
-        const creationConditionObj = creationConditionJisonParser.parse(creationConditionValue);
-        if (!creationConditionObj)
+        const { contextType } = contextJisonParser.parse(Context);
+        if (!contextType)
             return;
-        if (!creationConditionValue.includes('condition') && !creationConditionValue.includes('trigger')) {
-            ErroLogger_1.ErrorLogger.log(`Bad CreationCondition Construction, must includes 'assertion condition' or 'assertion trigger'`);
+        if (contextType == constants_1.TRIGGER) {
+            this.validateProperties(properties, constants_1.CONTEXT, [constants_1.TRIGGER], []);
+            const valid = this.validateDoubleRequiredProperties(properties, constants_1.CONTEXT, constants_1.TRIGGER, constants_1.CONDITION);
+            if (!valid)
+                ErroLogger_1.ErrorLogger.log(`Node type: ${constants_1.CONTEXT} with the value ${constants_1.TRIGGER} must have a ${constants_1.TRIGGER} property`);
+            const { Trigger } = properties;
+            if (Trigger) {
+                const triggerObj = triggerJisonParser.parse(Trigger);
+            }
+        }
+        else if (contextType == constants_1.CONDITION) {
+            this.validateProperties(properties, constants_1.CONTEXT, [constants_1.CONDITION], []);
+            const valid = this.validateDoubleRequiredProperties(properties, constants_1.CONTEXT, constants_1.TRIGGER, constants_1.CONDITION);
+            if (!valid)
+                ErroLogger_1.ErrorLogger.log(`Node type: ${constants_1.CONTEXT} with the value ${constants_1.CONDITION} must have a ${constants_1.CONDITION} property`);
+            const { Condition } = properties;
+            if (Condition) {
+                const conditionObj = conditionJisonParser.parse(Condition);
+            }
         }
     }
     // ============ aux methods  ================= //
@@ -352,6 +383,15 @@ class ModelRulesValidator {
                 ErroLogger_1.ErrorLogger.log(`Node type: ${nodeType} cannot contain the property: ${cannotContainProperty}`);
             }
         });
+    }
+    validateDoubleRequiredProperties(_properties, nodeType, firstProperty, secondProperty) {
+        const hasFirstProperty = _properties.hasOwnProperty(firstProperty);
+        const hasSecondProperty = _properties.hasOwnProperty(secondProperty);
+        if (hasFirstProperty && hasSecondProperty) {
+            ErroLogger_1.ErrorLogger.log(`Node type: ${nodeType} cannot contain the property: ${firstProperty} and ${secondProperty} at the same time`);
+            return false;
+        }
+        return true;
     }
 }
 exports.ModelRulesValidator = ModelRulesValidator;

@@ -85,7 +85,7 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
         this.validateGoalTextProperty(node.goalData.text);
         this.validateId(node.goalData.text, this.goalIdChecker());
         this.validateGoalType(node.goalData.customProperties.GoalType);
-        this.validateCreationConditionProperty(node.goalData.customProperties.CreationCondition);
+        this.validateContextProperty(node.goalData.customProperties);
         const validateQueryGoal = () => {
             this.validateQueryGoalProperties(node.goalData.customProperties);
             this.validateQueryGoalQueriedProperty(node.goalData.customProperties, variablesList);
@@ -94,7 +94,7 @@ class ModelValidator extends ModelRulesValidator_1.ModelRulesValidator {
         const validateAchieveGoal = () => {
             this.validateAchieveGoalProperties(node.goalData.customProperties);
             this.validateMonitorsProperty(node.goalData.customProperties.Monitors, variablesList);
-            this.validateAchieveGoalAchieveCondition(node.goalData.customProperties, variablesList);
+            this.validateAchieveGoalAchieveConditionAndUniversalAchieveCondition(node.goalData.customProperties, variablesList);
             this.validateNodeIsNotALeaf(node.children);
         };
         const { GoalType } = node.goalData.customProperties;

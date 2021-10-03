@@ -7,9 +7,9 @@ program='goal-model-syntactic-analyzer-linux'
 
 # Day Life In Nursing Homes
 
-# ./$program "../examples/Day Life In Nursing Homes/hddl/DayLifeInNursingHomes.hddl"\
-#  "../examples/Day Life In Nursing Homes/gm/CleaningRooms.txt"\
-#  "../examples/Day Life In Nursing Homes/configuration/configurationCleaningRooms.json"
+./$program "../examples/Day Life In Nursing Homes/hddl/DayLifeInNursingHomes.hddl"\
+ "../examples/Day Life In Nursing Homes/gm/CleaningRooms.txt"\
+ "../examples/Day Life In Nursing Homes/configuration/configurationCleaningRooms.json"
 
 # ./$program "../examples/Day Life In Nursing Homes/hddl/DayLifeInNursingHomes.hddl"\
 #  "../examples/Day Life In Nursing Homes/gm/MedicationDispensing.txt"\
@@ -55,6 +55,6 @@ program='goal-model-syntactic-analyzer-linux'
 
 # Vital Signs Monitoring
 
-./$program "../examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
- "../examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
- "../examples/Vital Signs Monitoring/configuration/configuration.json"
+# ./$program "../examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
+#  "../examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
+#  "../examples/Vital Signs Monitoring/configuration/configuration.json"

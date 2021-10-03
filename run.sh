@@ -70,6 +70,6 @@ npm run dev "./goal-model-examples/Room Cleaning Example/hddl/Room Cleaning.hddl
 
 # Vital Signs Monitoring
 
-npm run dev "./examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
- "./examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
- "./examples/Vital Signs Monitoring/configuration/configuration.json"
+# npm run dev "./examples/Vital Signs Monitoring/hddl/VitalSignsMonitoring.hddl"\
+#  "./examples/Vital Signs Monitoring/gm/VitalSignsMonitoring.txt"\
+#  "./examples/Vital Signs Monitoring/configuration/configuration.json"

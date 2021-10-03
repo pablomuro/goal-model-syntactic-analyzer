@@ -177,7 +177,8 @@ export class ModelRulesValidatorTest {
     correctInputList = [
       'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
       'current_room.is_clean >= 1',
-      'current_room.is_clean'
+      'current_room.is_clean',
+      ''
     ]
     validate(correctInputList, (input: any) => {
       achieveNode.goalData.customProperties.Controls = "current_room : Room"
@@ -190,7 +191,8 @@ export class ModelRulesValidatorTest {
     correctInputList = [
       'rooms->forAll(current_room | current_room.is_clean && current_room.abc)',
       'current_room.is_clean >= 1',
-      'current_room.is_clean'
+      'current_room.is_clean',
+      ''
     ]
     validate(correctInputList, (input: any) => {
       achieveNode.goalData.customProperties.Controls = "current_room : Room"
@@ -272,10 +274,12 @@ export class ModelRulesValidatorTest {
       },
 
     ]
+    let count = 0
     validate(correctInputList, (input: any) => {
       creationNode.goalData.customProperties = {
         ...input
       }
+      console.log((++count))
       this.modelValidator.validateContextProperty(creationNode.goalData.customProperties)
     })
 
@@ -309,6 +313,7 @@ export class ModelRulesValidatorTest {
         creationNode.goalData.customProperties = {
           ...input
         }
+        console.log((++count))
         this.modelValidator.validateContextProperty(creationNode.goalData.customProperties)
       })
 

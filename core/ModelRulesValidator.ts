@@ -164,6 +164,8 @@ export class ModelRulesValidator {
     }
     if (universalAchieveConditionValue) {
       achieveConditionObj = universalAchieveConditionJisonParser.parse(universalAchieveConditionValue)
+    } else if (properties.hasOwnProperty(UNIVERSAL_ACHIEVED_CONDITION)) {
+      ErrorLogger.log('UniversalAchieveCondition must have a value')
     }
 
     if (!achieveConditionObj) return

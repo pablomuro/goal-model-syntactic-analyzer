@@ -7,10 +7,17 @@ exports.ErrorLogger = void 0;
 const chalk_1 = __importDefault(require("chalk"));
 class ErrorLogger {
     static log(erroMessage) {
-        const styledErrorMessage = chalk_1.default.bold.red(erroMessage);
         const nodeName = this.currentNodeRef.node.goalData.text;
-        console.error(chalk_1.default.bold.red(`Error on node -> "${nodeName}"`));
-        console.error(styledErrorMessage + '\n');
+        const styledErrorTitle = chalk_1.default.bold.red(`Error on node -> "${nodeName}"`);
+        const styledErrorMessage = chalk_1.default.bold.red(erroMessage);
+        const message = {
+            nodeId: this.currentNodeRef.node.goalData.id,
+            nodeName,
+            message: erroMessage
+        };
+        const logMessage = `${styledErrorTitle}\n${styledErrorMessage}\n`;
+        this.errorList.push(message);
+        console.error(logMessage);
         this.errorCount++;
     }
 }

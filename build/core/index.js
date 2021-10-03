@@ -3,10 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const ErroLogger_1 = require("./ErroLogger");
 const fast_xml_parser_1 = __importDefault(require("fast-xml-parser"));
 const promises_1 = require("fs/promises");
 const GoalTree_1 = require("./GoalTree");
 const ModelValidator_1 = require("./ModelValidator");
+const fs_1 = require("fs");
 let isXmlConfigFile = false;
 main();
 async function main() {
@@ -34,9 +36,11 @@ async function main() {
         if (tree) {
             const modelValidator = new ModelValidator_1.ModelValidator(tree, typesMap, tasksVarMap, hddl, configFile);
             modelValidator.resetValidator();
-            // TODO - Testes aqui
             modelValidator.validateModel();
+            // TODO - Testes aqui
             // new ModelRulesValidatorTest(modelValidator).test()
+            const errorList = JSON.stringify(ErroLogger_1.ErrorLogger.errorList);
+            fs_1.writeFileSync('goal-model-error-list.json', errorList);
         }
     }
     catch (error) {
