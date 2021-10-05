@@ -148,7 +148,7 @@ export class ModelValidator extends ModelRulesValidator {
     this.validateTaskTextProperty(node.goalData.text)
     this.validateTaskProperties(node.goalData.customProperties)
 
-    this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties)
+    this.validateIfTaskParentHasMonitors(node.parent?.goalData.customProperties, node.goalData.customProperties)
     const taskParanteProperties = node.parent?.goalData.customProperties
     let parentGoalIsGroupFalse = false
     if (taskParanteProperties) {

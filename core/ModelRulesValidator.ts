@@ -116,11 +116,18 @@ export class ModelRulesValidator {
     let { queriedVariable, queryVariable, variablesInCondition } = queriedPropertyObj
 
     if (variablesInCondition) {
-      variablesInCondition.forEach((variable: string) => {
-        if (!variable?.includes(queryVariable.value)) {
-          ErrorLogger.log(`Query variable: "${queryVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
-        }
-      })
+      // TODO - validate in 
+      if (queriedPropertyValue.includes(' in ')) {
+
+      } else {
+        variablesInCondition.forEach((variable: string) => {
+          if (!variable.includes(queryVariable.value)) {
+            ErrorLogger.log(`Query variable: "${queryVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+          }
+        })
+      }
+
+
     }
 
     if (queriedVariable !== WORLD_DB) {
@@ -258,15 +265,10 @@ export class ModelRulesValidator {
   }
 
   validateTaskRobotsOnHddl(taskProperties: NodeCustomProperties, hddlParametersString: string, parentGoalIsGroupFalse: boolean) {
-
-
     const robotRegex = /(robot)(\s|\))/g
     const robotTeamRegex = /(robotteam)(\s|\))/g
 
     const hasRobotTeam = (hddlParametersString.match(new RegExp(robotTeamRegex)) != null)
-    const hasRobot = (hddlParametersString.match(new RegExp(robotRegex)) != null)
-
-    const hasRobotsOnHddl = (hasRobotTeam || hasRobot)
 
     const hddlRobotCountMatch = hddlParametersString.match(new RegExp(robotRegex))
 
@@ -290,10 +292,10 @@ export class ModelRulesValidator {
           }
         }
 
-        if (robotNumberObj.type === 'RANGE' && !hasRobotTeam) {
-          ErrorLogger.log(`RobotNumber of Range type must me mapped to a robotteam variable in the HDDL definition`);
-        }
-        if (robotNumberObj.type === 'NUMBER' && !hasRobotTeam) {
+        if (robotNumberObj.type && !hasRobotTeam) {
+          if (robotNumberObj.type === 'RANGE') {
+            robotNumberObj.value = robotNumberObj.value[1]
+          }
           try {
             if (!hddlRobotCountMatch) throw new Error
 
@@ -302,23 +304,22 @@ export class ModelRulesValidator {
               throw new Error
             }
           } catch (e) {
-            ErrorLogger.log(`RobotNumber with value: ${robotNumberObj.value} must map ${robotNumberObj.value} "robots" or a "robotteam" variable in the HDDL definition`);
+            const errorMessageType = (robotNumberObj.type === 'RANGE') ? 'a max range of' : 'value'
+            ErrorLogger.log(`RobotNumber with ${errorMessageType}: ${robotNumberObj.value} must map ${robotNumberObj.value} "robots" or a "robotteam" variable in the HDDL definition`);
           }
-
-          const robotNumber = robotNumberObj.value
-
         }
       }
-    } else if (!taskProperties.RobotNumber && hasRobotsOnHddl) {
-      ErrorLogger.log(`Tasks without a RobotNumber attribute cannot have a "robotteam" or a "robot" variables in the HDDL definition`)
+    } else if (!taskProperties.RobotNumber && hasRobotTeam) {
+      ErrorLogger.log(`Tasks without a RobotNumber attribute cannot have a "robotteam" variable in the HDDL definition`)
     }
   }
 
-  validateIfTaskParentHasMonitors(parentProperties: NodeCustomProperties | undefined) {
+  validateIfTaskParentHasMonitors(parentProperties: NodeCustomProperties | undefined, taskProperties: NodeCustomProperties) {
+    const taskHasVariables = taskProperties.Params || taskProperties.Location
     if (!parentProperties) {
-      ErrorLogger.log('Task musta have a Parent');
+      ErrorLogger.log('Task must have a Parent');
     }
-    else if (!('Monitors' in parentProperties)) {
+    else if (taskHasVariables && !('Monitors' in parentProperties)) {
       ErrorLogger.log('Task parent must have a Monitors property')
     }
   }
