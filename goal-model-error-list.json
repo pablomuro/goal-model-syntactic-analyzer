@@ -1,1 +1,12 @@
-[{"nodeId":"a07c4186-f533-4a0a-afbe-6efcb81222f6","nodeName":"G3: Clean Rooms","message":"UniversalAchieveCondition must have a value"},{"nodeId":"a07c4186-f533-4a0a-afbe-6efcb81222f6","nodeName":"G3: Clean Rooms","message":"Property: Trigger is required on type: Context"},{"nodeId":"a07c4186-f533-4a0a-afbe-6efcb81222f6","nodeName":"G3: Clean Rooms","message":"Property: Condition is required on type: Context"},{"nodeId":"a07c4186-f533-4a0a-afbe-6efcb81222f6","nodeName":"G3: Clean Rooms","message":"Property: Condition is required on type: Context"}]
+[
+  {
+    "nodeId": "211d6d5b-0fc5-47cf-8728-1e4eee65e891",
+    "nodeName": "G3: Get Necessary Objects For Agents [G4;G5;G6;G11]",
+    "message": "1: requesting_agents->forAll(current_agent |  current_agent.name && requesting_agents)}\n^....................................................................................^\nExpected : \"PROPERTY\" got \")\""
+  },
+  {
+    "nodeId": "562463a9-5441-4f2a-bad8-044e4ea40048",
+    "nodeName": "G4: Get Agent Requesting Objects",
+    "message": "Query variable type is not a Sequence"
+  }
+]

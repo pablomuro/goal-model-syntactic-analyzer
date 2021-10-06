@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { Console } from 'console';
 import { GrammarInterface } from './definitions/jison.types';
 const JisonAPI = require("jison-gho")
+import { ErrorLogger } from './ErroLogger';
 
 
 export class JisonParser {
@@ -28,14 +29,8 @@ export class JisonParser {
       const lineNumber = errorLine.substring(0, lineNumberSeparator)
       const erroString = errorLine.substring(lineNumberSeparator + 1)
 
-      const printErrorRange = () => {
-        return chalk`{red ${lineNumber} }{white.bold ${erroString}}\n{red ${positionDottedLine}}`
-      }
+      ErrorLogger.logParser(lineNumber, erroString, positionDottedLine, expected, token);
 
-      console.log(printErrorRange())
-      if (expected && token) {
-        console.log(chalk`{white.bold Expected : ${expected.join(' or ')} got ${token}}\n`)
-      }
     }
   }
 

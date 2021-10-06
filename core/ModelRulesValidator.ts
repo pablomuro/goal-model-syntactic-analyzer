@@ -113,21 +113,21 @@ export class ModelRulesValidator {
     const queriedPropertyObj = queriedPropertyJisonParser.parse(queriedPropertyValue)
     if (!queriedPropertyObj) return
 
-    let { queriedVariable, queryVariable, variablesInCondition } = queriedPropertyObj
+    let { queriedVariable, queryVariable, variablesInCondition }: {
+      queriedVariable: any, queryVariable: any, variablesInCondition: string[]
+    } = queriedPropertyObj
 
-    if (variablesInCondition) {
-      // TODO - validate in 
-      if (queriedPropertyValue.includes(' in ')) {
+    if (variablesInCondition.length) {
 
-      } else {
-        variablesInCondition.forEach((variable: string) => {
-          if (!variable.includes(queryVariable.value)) {
-            ErrorLogger.log(`Query variable: "${queryVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
-          }
-        })
+      const oclQueryVariable = variablesInCondition.filter((variable: string) => variable == queryVariable.value)
+      if (!oclQueryVariable.length) {
+        ErrorLogger.log(`Query variable: ${queryVariable.value} not used in the OCL instruction`)
+      } else if (oclQueryVariable.length == 1) {
+        const variableToCheck = variablesInCondition.find((variable: string) => variable !== queryVariable.value)
+        if (variableToCheck && variablesList[variableToCheck] == undefined) {
+          ErrorLogger.log(`Undeclared variable: ${variableToCheck} used in QueriedProperty OCL instruction`)
+        }
       }
-
-
     }
 
     if (queriedVariable !== WORLD_DB) {
@@ -182,14 +182,20 @@ export class ModelRulesValidator {
       return
     }
 
-    const { iteratedVariable, iterationVariable, variablesInCondition } = achieveConditionObj
+    const { iteratedVariable, iterationVariable, variablesInCondition }: {
+      iteratedVariable: any, iterationVariable: any, variablesInCondition: string[]
+    } = achieveConditionObj
 
-    if (variablesInCondition) {
-      variablesInCondition.forEach((variable: string) => {
-        if (!variable?.includes(iterationVariable.value)) {
-          ErrorLogger.log(`Iteration variable: "${iterationVariable.value}" not equal to the variable: "${variable.split('.')[0]}" in the condition`)
+    if (variablesInCondition.length) {
+      const oclIterationVariable = variablesInCondition.filter((variable: string) => variable == iterationVariable.value)
+      if (!oclIterationVariable.length) {
+        ErrorLogger.log(`Iteration variable: ${iterationVariable.value} not used in the OCL instruction`)
+      } else if (oclIterationVariable.length == 1) {
+        const variableToCheck = variablesInCondition.find((variable: string) => variable !== iterationVariable.value)
+        if (variableToCheck && variablesList[variableToCheck] == undefined) {
+          ErrorLogger.log(`Undeclared variable: ${variableToCheck} used in UniversalAchieveCondition OCL instruction`)
         }
-      })
+      }
     }
 
     if (variablesList[iteratedVariable] == undefined) {

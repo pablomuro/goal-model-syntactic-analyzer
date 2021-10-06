@@ -1,5 +1,5 @@
-import { GrammarInterface } from '../definitions/jison.types'
-import { whiteSpace, assertionConditionEvent, variableIdentifierRegex } from './GrammarConstants'
+import { GrammarInterface } from '../definitions/jison.types';
+import { assertionConditionEvent, variablePropertyIdentifierRegex, variableIdentifierRegex } from './GrammarConstants';
 
 
 export const ContextGrammar: GrammarInterface = {
@@ -58,6 +58,7 @@ export const ConditionGrammar: GrammarInterface = {
   lex: {
     rules: [
       [`not\\s`, "return 'NOT'"],
+      [`${variablePropertyIdentifierRegex}`, "return 'PROPERTY'"],
       [`${variableIdentifierRegex}`, "return 'VARIABLE'"],
       [`$`, "return 'end-of-input'"],
       [`\.*`, "return 'INVALID'"],
@@ -73,8 +74,8 @@ export const ConditionGrammar: GrammarInterface = {
       ],
     ],
     condition: [
-      [`NOT VARIABLE`, "$$ = [$1, $2]"],
-      [`VARIABLE`, "$$ = [$1]"],
+      [`NOT VARIABLE PROPERTY`, "$$ = [$1, $2]"],
+      [`VARIABLE PROPERTY`, "$$ = [$1]"],
     ],
   }
 };
